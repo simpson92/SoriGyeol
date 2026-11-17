@@ -1,0 +1,40 @@
+# web/ 폴더를 GitHub Pages(HTTPS)로 배포한다.
+# main 브랜치의 web/ 안 파일이 바뀌면 자동으로 실행된다.
+name: Deploy web to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+    paths: ["web/**", ".github/workflows/deploy.yml"]
+  workflow_dispatch:   # Actions 탭에서 직접 실행할 수도 있음
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload web/ folder
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: web
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

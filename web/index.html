@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>소리결 · 소리 크기 보기</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="main.js" defer></script>
+</head>
+<body>
+  <main class="app">
+    <header class="app-header">
+      <h1>소리결</h1>
+      <p class="subtitle">주변 소리 크기 보기 · 1주차</p>
+    </header>
+
+    <section class="level-card" aria-labelledby="level-title">
+      <h2 id="level-title" class="visually-hidden">현재 소리 크기</h2>
+
+      <p class="level-label" id="levelLabel">대기 중</p>
+
+      <p class="level-number">
+        <span id="dbValue">--</span>
+        <span class="unit">dBFS</span>
+      </p>
+
+      <div class="meter" role="meter" id="meter"
+           aria-label="소리 크기" aria-valuemin="-80" aria-valuemax="0" aria-valuenow="-80">
+        <div class="meter-fill" id="meterFill"></div>
+        <div class="meter-peak" id="meterPeak"></div>
+      </div>
+      <div class="meter-scale" aria-hidden="true">
+        <span>-80</span><span>-60</span><span>-40</span><span>-20</span><span>0</span>
+      </div>
+
+      <canvas id="history" class="history" height="120"
+              aria-label="최근 10초 동안의 소리 크기 변화" role="img"></canvas>
+    </section>
+
+    <div class="controls">
+      <button type="button" id="startBtn" class="btn btn-primary">감지 시작</button>
+      <button type="button" id="stopBtn" class="btn" disabled>멈추기</button>
+    </div>
+
+    <p id="status" class="status" role="status" aria-live="polite">
+      '감지 시작'을 누르면 마이크 사용 권한을 물어봐요.
+    </p>
+
+    <p class="note">
+      dBFS는 마이크가 받을 수 있는 최대 크기를 0으로 둔 상대값이에요. 실제 소음 측정기(dB SPL)와는 숫자가 달라요.
+      소리는 이 브라우저 안에서만 분석되고, 저장하거나 전송하지 않아요.
+    </p>
+
+    <p id="info" class="info"></p>
+  </main>
+</body>
+</html>
