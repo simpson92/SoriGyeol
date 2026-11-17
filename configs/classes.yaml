@@ -1,0 +1,109 @@
+# 소리결(SoriGyeol) 클래스 설정
+# - 우리 클래스 목록과 "데이터셋 원래 라벨 → 우리 클래스" 연결표
+# - 새 소리를 추가할 때는 classes에 항목을 추가하고, datasets의 mapping만 고치면 된다
+# - 학습 코드는 이 파일만 읽고, 어느 데이터셋에서 왔는지는 신경 쓰지 않는다
+
+version: 1
+sample_rate: 16000   # 모든 소리를 16kHz 모노로 통일
+
+# ------------------------------------------------------------
+# 우리 클래스
+#   enabled: false → 정의만 해두고 아직 학습에는 쓰지 않음 (데이터 부족 등)
+#   priority: 1 = 긴급(강한 진동), 2 = 주의(약한 진동), 0 = 알림 없음
+# ------------------------------------------------------------
+classes:
+  - id: siren
+    name_ko: 사이렌
+    priority: 1
+    enabled: true
+
+  - id: horn
+    name_ko: 경적          # 자동차 + 이륜차 경적을 하나로 (사용자 입장에선 같은 행동이 필요)
+    priority: 1
+    enabled: true
+
+  - id: alarm
+    name_ko: 화재·경보음
+    priority: 1
+    enabled: false         # 데이터 부족: ESC-50 40개뿐, AI Hub 없음, FSD50K는 화재경보 전용 클래스 없음
+                           # → 2차에서 FSD50K 'Alarm' 단독 369개 직접 선별 + 한국 경보음 직접 녹음 검토
+
+  - id: background
+    name_ko: 배경
+    priority: 0
+    enabled: true
+
+# ------------------------------------------------------------
+# 나중에 추가할 후보 (지금은 학습에 쓰지 않음)
+#   phase 2 = 보행 안전 확장 (공개 데이터가 거의 없어 직접 녹음 예정, 우선순위 순)
+#   later   = 실내 모드 (보행 안전 범위 밖이라 1차에서 제외)
+# ------------------------------------------------------------
+candidates:
+  - id: reversing_beep
+    name_ko: 후진 경고음
+    phase: 2
+    source: 직접 녹음 (주차장, 공사장, 골목)
+
+  - id: bicycle_bell
+    name_ko: 자전거 벨
+    phase: 2
+    source: FSD50K Bicycle_bell 129개 + 직접 녹음
+
+  - id: railroad_crossing
+    name_ko: 철도 건널목 경보음
+    phase: 2
+    source: 직접 녹음 (한국 건널목 소리는 해외 데이터와 다름)
+
+  - id: knock_doorbell
+    name_ko: 노크·초인종
+    phase: later
+    source: ESC-50 노크 40개 + FSD50K Doorbell 144개 · Knock 373개
+
+# ------------------------------------------------------------
+# 데이터셋별 라벨 연결표
+#   exclude  → 학습에 쓰지 않음 (나중에 별도 클래스가 될 소리, 헷갈리는 소리)
+#   default  → mapping에 없는 라벨은 이 클래스로
+# ------------------------------------------------------------
+datasets:
+
+  aihub_urban_sound:
+    root: data/raw/aihub_urban_sound
+    label_from: '원천데이터의 소분류 폴더 이름 (앞의 번호 제외, 예: "1.차량경적" → "차량경적")'
+    mapping:
+      차량경적: horn          # 3,588
+      이륜차경적: horn        # 5,079
+      차량사이렌: siren       # 2,239
+      차량주행음: background  # 1,909
+      이륜차주행음: background # 5,233
+      비행기: background      # 1,952
+      헬리콥터: background    # 3,660
+      기차: background        # 2,366
+      지하철: background      # 2,617
+
+  urbansound8k:
+    root: data/raw/urbansound8k/UrbanSound8K
+    label_from: metadata/UrbanSound8K.csv 의 class 열
+    mapping:
+      siren: siren               # 929
+      car_horn: horn             # 429
+      gun_shot: exclude          # 374 · 안전 관련이지만 1차 범위 밖 → 배경으로 넣으면 혼동
+      air_conditioner: background
+      children_playing: background
+      dog_bark: background
+      drilling: background
+      engine_idling: background
+      jackhammer: background
+      street_music: background
+
+  esc50:
+    root: data/raw/esc50/ESC-50-master
+    label_from: meta/esc50.csv 의 category 열
+    default: background        # 아래에 없는 나머지 43종(각 40개)은 배경
+    mapping:
+      siren: siren
+      car_horn: horn
+      clock_alarm: alarm
+      door_wood_knock: exclude   # 노크·초인종은 실내 모드 후보 → 배경으로 넣지 않음
+      glass_breaking: exclude    # 나중에 위험 소리 클래스 후보
+      crying_baby: exclude       # 나중에 사람 소리 클래스 후보
+      church_bells: exclude      # 초인종·경보음과 비슷해서 배경으로 두면 혼동
