@@ -1,11 +1,24 @@
-// 소리결 1주차: 마이크 입력을 받아 소리 크기(dBFS)를 화면에 보여 준다.
+// 소리결: 마이크 입력을 받아 소리 크기(dBFS)와 소리 종류를 화면에 보여 준다.
 // 소리는 브라우저 안에서만 분석하고 저장·전송하지 않는다.
 
+import { loadClassifier, analyze, THRESHOLD } from './classifier.js';
+import { createStereoProbe, judgeStereo } from './stereo.js';
+
+// ── 소리 크기 표시 설정 ──
 const MIN_DB = -80;          // 화면에 표시할 가장 작은 값
 const QUIET_DB = -50;        // 이보다 작으면 '조용함'
 const LOUD_DB = -20;         // 이보다 크면 '큼'
 const HISTORY_SECONDS = 10;  // 그래프에 보여 줄 시간
 const PEAK_HOLD_MS = 1500;   // 최대값 표시를 유지하는 시간
+
+// ── 소리 분류 설정 ──
+const WINDOW_SEC = 1.0;      // 한 번에 분석할 길이 (YAMNet 입력 약 0.975초)
+const CLASSIFY_EVERY_SEC = 0.5; // 0.5초마다 최근 1초를 분석
+const HIT_HOLD_MS = 2000;    // 감지된 소리를 화면에 유지하는 시간 (깜빡임 방지)
+
+// ── 방향 실험 설정 ──
+const STEREO_EVERY_MS = 250; // 측정값 갱신 간격
+const STEREO_MIN_DB = -50;   // 이보다 작은 소리는 측정하지 않음 (잡음만 있을 때 값이 튀지 않게)
 
 const el = {
   start: document.getElementById('startBtn'),
@@ -18,22 +31,61 @@ const el = {
   peak: document.getElementById('meterPeak'),
   canvas: document.getElementById('history'),
   info: document.getElementById('info'),
+  soundCard: document.getElementById('soundCard'),
+  soundName: document.getElementById('soundName'),
+  soundDetail: document.getElementById('soundDetail'),
+  topList: document.getElementById('topList'),
+  modelStatus: document.getElementById('modelStatus'),
+  stVerdict: document.getElementById('stereoVerdict'),
+  stChannels: document.getElementById('stChannels'),
+  stLeft: document.getElementById('stLeft'),
+  stRight: document.getElementById('stRight'),
+  stDiff: document.getElementById('stDiff'),
+  stCorr: document.getElementById('stCorr'),
+  stLag: document.getElementById('stLag'),
 };
 
+// 오디오 상태
 let stream = null;
 let audioCtx = null;
 let analyser = null;
+let captureNode = null;
 let samples = null;
 let rafId = null;
+
+// 소리 크기 상태
 let history = [];            // [{t, db}]
 let peakDb = MIN_DB;
 let peakAt = 0;
 let shownDb = MIN_DB;        // 숫자가 너무 빨리 바뀌지 않게 부드럽게 만든 값
 
+// 소리 분류 상태
+let classifier = null;
+let ring = null;             // 최근 1초 오디오 (원형 버퍼)
+let ringPos = 0;
+let ringFilled = 0;
+let sinceLastClassify = 0;
+let lastHit = null;
+let lastHitAt = 0;
+
+// 방향 실험 상태
+let stereoProbe = null;
+let channelCount = null;
+let lastStereoAt = 0;
+
+// ─────────────────────────── 공통 ───────────────────────────
+
 function setStatus(text, isError = false) {
   el.status.textContent = text;
   el.status.classList.toggle('is-error', isError);
 }
+
+function setModelStatus(text, isError = false) {
+  el.modelStatus.textContent = text;
+  el.modelStatus.classList.toggle('is-error', isError);
+}
+
+// ─────────────────────────── 소리 크기 ───────────────────────────
 
 function toPercent(db) {
   const clamped = Math.max(MIN_DB, Math.min(0, db));
@@ -55,7 +107,7 @@ function measureDb() {
   return rms > 0 ? 20 * Math.log10(rms) : -Infinity;
 }
 
-function render(rawDb, now) {
+function renderLevel(rawDb, now) {
   // 완전한 무음(-Infinity)도 화면 최솟값으로 맞춘다
   const db = Number.isFinite(rawDb) ? Math.max(rawDb, MIN_DB) : MIN_DB;
 
@@ -63,7 +115,7 @@ function render(rawDb, now) {
   shownDb = db > shownDb ? db : shownDb * 0.9 + db * 0.1;
 
   if (db > peakDb || now - peakAt > PEAK_HOLD_MS) {
-    peakDb = Math.max(db, MIN_DB);
+    peakDb = db;
     peakAt = now;
   }
 
@@ -126,8 +178,143 @@ function drawHistory(now) {
 function loop(now) {
   const db = measureDb();
   history.push({ t: now, db: Number.isFinite(db) ? Math.max(db, MIN_DB) : MIN_DB });
-  render(db, now);
+  renderLevel(db, now);
+  if (stereoProbe && now - lastStereoAt >= STEREO_EVERY_MS) {
+    lastStereoAt = now;
+    renderStereo(db);
+  }
   rafId = requestAnimationFrame(loop);
+}
+
+// ─────────────────────────── 방향 실험 ───────────────────────────
+
+function fmtDb(v) {
+  return Number.isFinite(v) ? `${v.toFixed(1)} dBFS` : '무음';
+}
+
+function renderStereo(db) {
+  el.stChannels.textContent = channelCount ?? '알 수 없음';
+  if (!(db >= STEREO_MIN_DB)) return; // 소리가 작으면 이전 값을 유지
+
+  const r = stereoProbe.read();
+  const verdict = judgeStereo(channelCount, r);
+  el.stVerdict.textContent = verdict.text;
+  el.stVerdict.className = `dev-verdict is-${verdict.key}`;
+
+  el.stLeft.textContent = fmtDb(r.dbL);
+  el.stRight.textContent = fmtDb(r.dbR);
+  el.stDiff.textContent = r.diffDb === null ? '—' : `${r.diffDb > 0 ? '+' : ''}${r.diffDb.toFixed(1)} dB`;
+  el.stCorr.textContent = r.corr0.toFixed(3);
+  el.stLag.textContent = verdict.key === 'stereo'
+    ? `${r.bestLag > 0 ? '+' : ''}${r.bestLag} 샘플 (${r.bestLagUs.toFixed(0)}µs, 상관 ${r.bestCorr.toFixed(2)})`
+    : '—';
+}
+
+function resetStereo() {
+  el.stVerdict.textContent = '감지를 시작하면 이 기기가 마이크를 몇 채널로 주는지 확인해요.';
+  el.stVerdict.className = 'dev-verdict';
+  for (const k of ['stChannels', 'stLeft', 'stRight', 'stDiff', 'stCorr', 'stLag']) el[k].textContent = '—';
+}
+
+// ─────────────────────────── 소리 분류 ───────────────────────────
+
+async function prepareClassifier() {
+  try {
+    const t0 = performance.now();
+    classifier = await loadClassifier();
+    setModelStatus(`소리 분류 모델 준비 완료 (${((performance.now() - t0) / 1000).toFixed(1)}초)`);
+  } catch (err) {
+    console.error(err);
+    setModelStatus('소리 분류 모델을 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해 주세요. (소리 크기는 계속 볼 수 있어요)', true);
+  }
+}
+
+// AudioWorklet에서 2048 샘플씩 들어오는 소리를 최근 1초 버퍼에 쌓는다
+function onAudioChunk(chunk) {
+  for (let i = 0; i < chunk.length; i++) {
+    ring[ringPos] = chunk[i];
+    ringPos = (ringPos + 1) % ring.length;
+  }
+  ringFilled = Math.min(ring.length, ringFilled + chunk.length);
+  sinceLastClassify += chunk.length;
+
+  const every = Math.round(audioCtx.sampleRate * CLASSIFY_EVERY_SEC);
+  if (classifier && ringFilled === ring.length && sinceLastClassify >= every) {
+    sinceLastClassify = 0;
+    classifyNow();
+  }
+}
+
+function classifyNow() {
+  // 원형 버퍼를 시간 순서대로 펼친다
+  const windowed = new Float32Array(ring.length);
+  windowed.set(ring.subarray(ringPos));
+  windowed.set(ring.subarray(0, ringPos), ring.length - ringPos);
+
+  const t0 = performance.now();
+  const result = analyze(classifier, windowed, audioCtx.sampleRate);
+  const ms = performance.now() - t0;
+
+  renderSound(result, ms);
+}
+
+function renderSound({ top, hit }, ms) {
+  const now = performance.now();
+  if (hit) {
+    lastHit = hit;
+    lastHitAt = now;
+  }
+  const showing = lastHit && now - lastHitAt < HIT_HOLD_MS ? lastHit : null;
+
+  if (showing) {
+    el.soundCard.className = `sound-card is-${showing.level}`;
+    el.soundName.textContent = showing.name;
+    el.soundDetail.textContent =
+      `${showing.level === 'urgent' ? '긴급' : '일반'} · 확신도 ${Math.round(showing.score * 100)}%`;
+  } else {
+    el.soundCard.className = 'sound-card';
+    el.soundName.textContent = top[0] ? top[0].name : '—';
+    el.soundDetail.textContent = `감지할 소리 아님 (기준 ${Math.round(THRESHOLD * 100)}% 미만)`;
+  }
+
+  el.topList.replaceChildren(
+    ...top.map((t) => {
+      const li = document.createElement('li');
+      li.textContent = t.name;
+      const score = document.createElement('span');
+      score.className = 'score';
+      score.textContent = `${Math.round(t.score * 100)}%`;
+      li.append(score);
+      return li;
+    }),
+  );
+
+  el.info.dataset.classifyMs = ms.toFixed(0);
+  updateInfo();
+}
+
+function resetSound() {
+  lastHit = null;
+  el.soundCard.className = 'sound-card';
+  el.soundName.textContent = '—';
+  el.soundDetail.textContent = '감지를 시작하면 약 1초마다 소리 종류를 판단해요.';
+  const li = document.createElement('li');
+  li.className = 'top-empty';
+  li.textContent = '아직 결과가 없어요';
+  el.topList.replaceChildren(li);
+}
+
+// ─────────────────────────── 시작 / 멈춤 ───────────────────────────
+
+function updateInfo() {
+  if (!audioCtx || !stream) return;
+  const track = stream.getAudioTracks()[0];
+  const settings = track.getSettings();
+  const ms = el.info.dataset.classifyMs;
+  el.info.textContent =
+    `샘플레이트 ${audioCtx.sampleRate}Hz · 마이크: ${track.label || '기본 마이크'}` +
+    ` · 잡음 억제 ${settings.noiseSuppression ? '켜짐' : '꺼짐'}` +
+    (ms ? ` · 분류 ${ms}ms` : '');
 }
 
 async function start() {
@@ -150,6 +337,7 @@ async function start() {
         echoCancellation: false,
         noiseSuppression: false,
         autoGainControl: false,
+        channelCount: { ideal: 2 }, // 방향 실험: 가능하면 2채널로 받는다
       },
       video: false,
     });
@@ -168,11 +356,36 @@ async function start() {
   audioCtx = new AudioContext();
   if (audioCtx.state === 'suspended') await audioCtx.resume();
   const source = audioCtx.createMediaStreamSource(stream);
+
+  // 소리 크기용
   analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 2048;              // 약 43ms 분량 (48kHz 기준)
+  analyser.fftSize = 2048;
   analyser.smoothingTimeConstant = 0;
   source.connect(analyser);             // 스피커로는 연결하지 않음 (하울링 방지)
   samples = new Float32Array(analyser.fftSize);
+
+  // 방향 실험용: 채널을 나눠서 따로 측정
+  channelCount = stream.getAudioTracks()[0].getSettings().channelCount ?? null;
+  stereoProbe = createStereoProbe(audioCtx, source);
+  lastStereoAt = 0;
+  resetStereo();
+
+  // 소리 분류용: AudioWorklet으로 오디오를 받아 최근 1초를 모은다
+  ring = new Float32Array(Math.round(audioCtx.sampleRate * WINDOW_SEC));
+  ringPos = 0;
+  ringFilled = 0;
+  sinceLastClassify = 0;
+  try {
+    await audioCtx.audioWorklet.addModule('capture-worklet.js');
+    captureNode = new AudioWorkletNode(audioCtx, 'capture-processor');
+    captureNode.port.onmessage = (e) => onAudioChunk(e.data);
+    const mute = audioCtx.createGain();
+    mute.gain.value = 0;                // 소리는 내보내지 않고, 처리만 계속되게 연결
+    source.connect(captureNode).connect(mute).connect(audioCtx.destination);
+  } catch (err) {
+    console.error(err);
+    setModelStatus('이 브라우저에서는 소리 분류를 할 수 없어요 (AudioWorklet 미지원). 소리 크기는 계속 볼 수 있어요.', true);
+  }
 
   // 마이크가 중간에 멈추면 바로 알린다 (권한 해제, 다른 앱 전환 등)
   const track = stream.getAudioTracks()[0];
@@ -183,22 +396,26 @@ async function start() {
   track.addEventListener('mute', () => setStatus('마이크 입력이 잠시 멈췄어요.', true));
   track.addEventListener('unmute', () => setStatus('소리를 듣고 있어요.'));
 
-  const settings = track.getSettings();
-  el.info.textContent =
-    `샘플레이트 ${audioCtx.sampleRate}Hz · 마이크: ${track.label || '기본 마이크'}` +
-    ` · 잡음 억제 ${settings.noiseSuppression ? '켜짐' : '꺼짐'}`;
-
+  updateInfo();
   history = [];
   peakDb = MIN_DB;
   shownDb = MIN_DB;
+  resetSound();
   el.stop.disabled = false;
-  setStatus('소리를 듣고 있어요.');
+  setStatus(classifier ? '소리를 듣고 있어요.' : '소리를 듣고 있어요. 분류 모델이 준비되면 소리 종류도 보여 드려요.');
   rafId = requestAnimationFrame(loop);
 }
 
 function stop() {
   if (rafId) cancelAnimationFrame(rafId);
   rafId = null;
+  if (captureNode) {
+    captureNode.port.onmessage = null;
+    captureNode.disconnect();
+    captureNode = null;
+  }
+  stereoProbe?.disconnect();
+  stereoProbe = null;
   stream?.getTracks().forEach((t) => t.stop());
   stream = null;
   audioCtx?.close();
@@ -207,8 +424,12 @@ function stop() {
   el.stop.disabled = true;
   el.label.textContent = '멈춤';
   el.label.className = 'level-label';
+  resetSound();
   setStatus('멈췄어요. 다시 보려면 \'감지 시작\'을 누르세요.');
 }
 
 el.start.addEventListener('click', start);
 el.stop.addEventListener('click', stop);
+
+// 페이지를 열자마자 모델을 미리 불러 둔다 (처음 한 번 약 25MB)
+prepareClassifier();

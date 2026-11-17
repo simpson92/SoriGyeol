@@ -2,56 +2,73 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>소리결 · 소리 크기 보기</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>소리결 · 주변 소리 알림</title>
   <link rel="stylesheet" href="style.css">
-  <script src="main.js" defer></script>
+  <script type="module" src="main.js"></script>
 </head>
 <body>
   <main class="app">
     <header class="app-header">
       <h1>소리결</h1>
-      <p class="subtitle">주변 소리 크기 보기 · 1주차</p>
+      <p id="status" class="status" role="status" aria-live="polite">'감지 시작'을 누르면 마이크 권한을 물어봐요.</p>
     </header>
 
+    <!-- 지금 들리는 소리 -->
+    <section class="sound-card" id="soundCard" aria-labelledby="sound-title">
+      <h2 id="sound-title" class="card-title">지금 들리는 소리</h2>
+      <p class="sound-name" id="soundName" aria-live="assertive">—</p>
+      <p class="sound-detail" id="soundDetail">감지를 시작하면 약 1초마다 소리 종류를 판단해요.</p>
+      <ol class="top-list" id="topList" aria-label="비슷한 소리 순위">
+        <li class="top-empty">아직 결과가 없어요</li>
+      </ol>
+      <p class="model-status" id="modelStatus">소리 분류 모델을 불러오는 중이에요…</p>
+    </section>
+
+    <!-- 소리 크기 -->
     <section class="level-card" aria-labelledby="level-title">
-      <h2 id="level-title" class="visually-hidden">현재 소리 크기</h2>
-
-      <p class="level-label" id="levelLabel">대기 중</p>
-
-      <p class="level-number">
-        <span id="dbValue">--</span>
-        <span class="unit">dBFS</span>
-      </p>
-
+      <div class="level-row">
+        <h2 id="level-title" class="card-title">소리 크기</h2>
+        <p class="level-label" id="levelLabel">대기 중</p>
+        <p class="level-number"><span id="dbValue">--</span><span class="unit">dBFS</span></p>
+      </div>
       <div class="meter" role="meter" id="meter"
            aria-label="소리 크기" aria-valuemin="-80" aria-valuemax="0" aria-valuenow="-80">
         <div class="meter-fill" id="meterFill"></div>
         <div class="meter-peak" id="meterPeak"></div>
       </div>
-      <div class="meter-scale" aria-hidden="true">
-        <span>-80</span><span>-60</span><span>-40</span><span>-20</span><span>0</span>
-      </div>
-
-      <canvas id="history" class="history" height="120"
+      <canvas id="history" class="history" height="56"
               aria-label="최근 10초 동안의 소리 크기 변화" role="img"></canvas>
     </section>
+
+    <!-- 방향 실험 (개발용, 기본은 접힘) -->
+    <details class="dev-card">
+      <summary>방향 실험 · 개발 정보</summary>
+      <p class="dev-verdict" id="stereoVerdict">감지를 시작하면 이 기기가 마이크를 몇 채널로 주는지 확인해요.</p>
+      <dl class="dev-grid">
+        <dt>채널 수</dt><dd id="stChannels">—</dd>
+        <dt>상관</dt><dd id="stCorr">—</dd>
+        <dt>채널 1</dt><dd id="stLeft">—</dd>
+        <dt>채널 2</dt><dd id="stRight">—</dd>
+        <dt>크기 차</dt><dd id="stDiff">—</dd>
+        <dt>시간 차</dt><dd id="stLag">—</dd>
+      </dl>
+      <p class="dev-hint">
+        폰의 위·아래 끝을 번갈아 소리 쪽으로 향해 보세요. 2채널 기기라면 크기 차와 시간 차의 부호가 바뀌어야 해요.
+        −50dBFS보다 작은 소리는 측정하지 않아요.
+      </p>
+      <p class="dev-hint">
+        dBFS는 마이크 최대 크기를 0으로 둔 상대값이라 소음 측정기(dB SPL)와 숫자가 달라요.
+      </p>
+      <p id="info" class="dev-hint"></p>
+    </details>
+
+    <p class="privacy">소리는 이 폰 브라우저 안에서만 분석되고, 저장·전송하지 않아요.</p>
 
     <div class="controls">
       <button type="button" id="startBtn" class="btn btn-primary">감지 시작</button>
       <button type="button" id="stopBtn" class="btn" disabled>멈추기</button>
     </div>
-
-    <p id="status" class="status" role="status" aria-live="polite">
-      '감지 시작'을 누르면 마이크 사용 권한을 물어봐요.
-    </p>
-
-    <p class="note">
-      dBFS는 마이크가 받을 수 있는 최대 크기를 0으로 둔 상대값이에요. 실제 소음 측정기(dB SPL)와는 숫자가 달라요.
-      소리는 이 브라우저 안에서만 분석되고, 저장하거나 전송하지 않아요.
-    </p>
-
-    <p id="info" class="info"></p>
   </main>
 </body>
 </html>
