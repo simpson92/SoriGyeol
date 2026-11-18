@@ -1,6 +1,6 @@
 """configs/classes.yaml → web/classes.json
 
-웹 앱(브라우저)은 YAML을 읽지 못하므로, 클래스의 id·이름·우선순위·사용 여부만 JSON으로 내보낸다.
+웹 앱(브라우저)은 YAML을 읽지 못하므로, 클래스의 id·이름·우선순위·사용 여부(+ 있으면 threshold)만 JSON으로 내보낸다.
 classes.yaml을 고친 뒤에는 이 스크립트를 실행하고, web/classes.json을 함께 커밋한다.
 
 실행 (레포 맨 위에서):
@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "configs" / "classes.yaml"
 DST = ROOT / "web" / "classes.json"
 KEYS = ("id", "name_ko", "priority", "enabled")
+OPTIONAL_KEYS = ("threshold",)  # 있으면 같이 내보냄 (YAMNet 평가로 정한 클래스별 기준 점수)
 
 
 def main() -> None:
@@ -30,7 +31,9 @@ def main() -> None:
         missing = [k for k in KEYS if k not in c]
         if missing:
             sys.exit(f"classes.yaml의 '{c.get('id', '?')}' 항목에 {missing}가 없어요.")
-        classes.append({k: c[k] for k in KEYS})
+        item = {k: c[k] for k in KEYS}
+        item.update({k: c[k] for k in OPTIONAL_KEYS if k in c})
+        classes.append(item)
 
     out = {
         "_note": "자동 생성 파일. 직접 고치지 말고 configs/classes.yaml을 고친 뒤 src/export_web_classes.py를 실행하세요.",

@@ -3,6 +3,7 @@
 
 import { loadClassifier, loadTargets, analyze, THRESHOLD } from './classifier.js';
 import { createStereoProbe, judgeStereo } from './stereo.js';
+import { createAlertEngine } from './alert.js';
 
 // ── 소리 크기 표시 설정 ──
 const MIN_DB = -80;          // 화면에 표시할 가장 작은 값
@@ -14,7 +15,10 @@ const PEAK_HOLD_MS = 1500;   // 최대값 표시를 유지하는 시간
 // ── 소리 분류 설정 ──
 const WINDOW_SEC = 1.0;      // 한 번에 분석할 길이 (YAMNet 입력 약 0.975초)
 const CLASSIFY_EVERY_SEC = 0.5; // 0.5초마다 최근 1초를 분석
-const HIT_HOLD_MS = 2000;    // 감지된 소리를 화면에 유지하는 시간 (깜빡임 방지)
+// ── 알림 설정 ──
+// 진동 패턴 (ms): 긴급 = 길게 3회, 주의 = 짧게 2회. iPhone Safari는 진동을 지원하지 않아 화면 깜빡임만 동작
+const VIBRATE = { urgent: [500, 200, 500, 200, 500], normal: [100, 150, 100] };
+const FLASH_MS = 1500;       // 화면 깜빡임 시간 (초당 2회 → 광과민 기준인 초당 3회 미만)
 
 // ── 방향 실험 설정 ──
 const STEREO_EVERY_MS = 250; // 측정값 갱신 간격
@@ -43,6 +47,8 @@ const el = {
   stDiff: document.getElementById('stDiff'),
   stCorr: document.getElementById('stCorr'),
   stLag: document.getElementById('stLag'),
+  flash: document.getElementById('flash'),
+  flashText: document.getElementById('flashText'),
 };
 
 // 오디오 상태
@@ -66,8 +72,9 @@ let ring = null;            // 최근 1초 오디오 (원형 버퍼)
 let ringPos = 0;
 let ringFilled = 0;
 let sinceLastClassify = 0;
-let lastHit = null;
-let lastHitAt = 0;
+const alertEngine = createAlertEngine();
+let wakeLock = null;
+let flashTimer = null;
 
 // 방향 실험 상태
 let stereoProbe = null;
@@ -260,19 +267,22 @@ function classifyNow() {
   renderSound(result, ms);
 }
 
-function renderSound({ top, hit }, ms) {
+function renderSound({ top, targets: scored }, ms) {
   const now = performance.now();
-  if (hit) {
-    lastHit = hit;
-    lastHitAt = now;
-  }
-  const showing = lastHit && now - lastHitAt < HIT_HOLD_MS ? lastHit : null;
+  const { fire, showing, pending } = alertEngine.update(scored, now);
+
+  if (fire) notify(showing);
 
   if (showing) {
+    const score = scored.find((t) => t.id === showing.id)?.score ?? showing.score;
     el.soundCard.className = `sound-card is-${showing.level}`;
     el.soundName.textContent = showing.name;
     el.soundDetail.textContent =
-      `${showing.level === 'urgent' ? '긴급' : '주의'} · 확신도 ${Math.round(showing.score * 100)}%`;
+      `${showing.level === 'urgent' ? '긴급' : '주의'} · 확신도 ${Math.round(score * 100)}%`;
+  } else if (pending) {
+    el.soundCard.className = 'sound-card';
+    el.soundName.textContent = `${pending.name}?`;
+    el.soundDetail.textContent = `확인 중… (${Math.round(pending.score * 100)}%)`;
   } else {
     el.soundCard.className = 'sound-card';
     el.soundName.textContent = top[0] ? top[0].name : '—';
@@ -296,7 +306,8 @@ function renderSound({ top, hit }, ms) {
 }
 
 function resetSound() {
-  lastHit = null;
+  alertEngine.reset();
+  hideFlash();
   el.soundCard.className = 'sound-card';
   el.soundName.textContent = '—';
   el.soundDetail.textContent = '감지를 시작하면 약 1초마다 소리 종류를 판단해요.';
@@ -304,6 +315,58 @@ function resetSound() {
   li.className = 'top-empty';
   li.textContent = '아직 결과가 없어요';
   el.topList.replaceChildren(li);
+}
+
+// ─────────────────────────── 알림 동작 ───────────────────────────
+
+function notify(target) {
+  // 진동 (Android Chrome 등 지원 기기만)
+  if ('vibrate' in navigator) {
+    navigator.vibrate(VIBRATE[target.level] ?? VIBRATE.normal);
+  }
+  // 화면 전체 깜빡임 (모든 기기)
+  el.flashText.textContent = target.name;
+  el.flash.className = `flash is-${target.level}`;
+  el.flash.hidden = false;
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(hideFlash, FLASH_MS);
+}
+
+function hideFlash() {
+  clearTimeout(flashTimer);
+  el.flash.hidden = true;
+  el.flash.className = 'flash';
+}
+
+// ─────────────────────────── 화면 켜짐 유지 ───────────────────────────
+// 화면이 꺼지면 브라우저가 마이크를 멈추므로, 감지 중에는 화면이 꺼지지 않게 한다.
+
+async function keepScreenOn() {
+  if (!('wakeLock' in navigator)) return false;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+    return true;
+  } catch (err) {
+    console.warn('화면 켜짐 유지 실패:', err);
+    return false;
+  }
+}
+
+function releaseScreen() {
+  wakeLock?.release();
+  wakeLock = null;
+}
+
+// 다른 앱에 갔다가 돌아오면 화면 켜짐 유지가 풀려 있으므로 다시 요청한다
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && stream && !wakeLock) keepScreenOn().then(updateStatusLine);
+});
+
+function updateStatusLine() {
+  if (!stream) return;
+  const base = classifier ? '소리를 듣고 있어요.' : '소리를 듣고 있어요. 분류 모델이 준비되면 소리 종류도 보여 드려요.';
+  setStatus(wakeLock ? `${base} 화면 켜짐 유지 중` : `${base} 화면이 꺼지면 감지가 멈춰요`);
 }
 
 // ─────────────────────────── 시작 / 멈춤 ───────────────────────────
@@ -396,7 +459,7 @@ async function start() {
     setStatus('감지가 멈췄어요. 마이크 연결이 끊겼어요. 다시 시작해 주세요.', true);
   });
   track.addEventListener('mute', () => setStatus('마이크 입력이 잠시 멈췄어요.', true));
-  track.addEventListener('unmute', () => setStatus('소리를 듣고 있어요.'));
+  track.addEventListener('unmute', updateStatusLine);
 
   updateInfo();
   history = [];
@@ -404,7 +467,8 @@ async function start() {
   shownDb = MIN_DB;
   resetSound();
   el.stop.disabled = false;
-  setStatus(classifier ? '소리를 듣고 있어요.' : '소리를 듣고 있어요. 분류 모델이 준비되면 소리 종류도 보여 드려요.');
+  await keepScreenOn();
+  updateStatusLine();
   rafId = requestAnimationFrame(loop);
 }
 
@@ -418,6 +482,7 @@ function stop() {
   }
   stereoProbe?.disconnect();
   stereoProbe = null;
+  releaseScreen();
   stream?.getTracks().forEach((t) => t.stop());
   stream = null;
   audioCtx?.close();
