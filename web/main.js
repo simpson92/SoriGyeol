@@ -1,7 +1,7 @@
 // 소리결: 마이크 입력을 받아 소리 크기(dBFS)와 소리 종류를 화면에 보여 준다.
 // 소리는 브라우저 안에서만 분석하고 저장·전송하지 않는다.
 
-import { loadClassifier, analyze, THRESHOLD } from './classifier.js';
+import { loadClassifier, loadTargets, analyze, THRESHOLD } from './classifier.js';
 import { createStereoProbe, judgeStereo } from './stereo.js';
 
 // ── 소리 크기 표시 설정 ──
@@ -61,7 +61,8 @@ let shownDb = MIN_DB;        // 숫자가 너무 빨리 바뀌지 않게 부드�
 
 // 소리 분류 상태
 let classifier = null;
-let ring = null;             // 최근 1초 오디오 (원형 버퍼)
+let targets = [];            // 알림 대상 클래스 (web/classes.json에서 읽음)
+let ring = null;            // 최근 1초 오디오 (원형 버퍼)
 let ringPos = 0;
 let ringFilled = 0;
 let sinceLastClassify = 0;
@@ -221,8 +222,9 @@ function resetStereo() {
 async function prepareClassifier() {
   try {
     const t0 = performance.now();
-    classifier = await loadClassifier();
-    setModelStatus(`소리 분류 모델 준비 완료 (${((performance.now() - t0) / 1000).toFixed(1)}초)`);
+    [classifier, targets] = await Promise.all([loadClassifier(), loadTargets()]);
+    const names = targets.map((t) => t.name).join(', ') || '없음';
+    setModelStatus(`모델 준비 완료 (${((performance.now() - t0) / 1000).toFixed(1)}초) · 알림 대상: ${names}`);
   } catch (err) {
     console.error(err);
     setModelStatus('소리 분류 모델을 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해 주세요. (소리 크기는 계속 볼 수 있어요)', true);
@@ -252,7 +254,7 @@ function classifyNow() {
   windowed.set(ring.subarray(0, ringPos), ring.length - ringPos);
 
   const t0 = performance.now();
-  const result = analyze(classifier, windowed, audioCtx.sampleRate);
+  const result = analyze(classifier, windowed, audioCtx.sampleRate, targets);
   const ms = performance.now() - t0;
 
   renderSound(result, ms);
@@ -270,11 +272,11 @@ function renderSound({ top, hit }, ms) {
     el.soundCard.className = `sound-card is-${showing.level}`;
     el.soundName.textContent = showing.name;
     el.soundDetail.textContent =
-      `${showing.level === 'urgent' ? '긴급' : '일반'} · 확신도 ${Math.round(showing.score * 100)}%`;
+      `${showing.level === 'urgent' ? '긴급' : '주의'} · 확신도 ${Math.round(showing.score * 100)}%`;
   } else {
     el.soundCard.className = 'sound-card';
     el.soundName.textContent = top[0] ? top[0].name : '—';
-    el.soundDetail.textContent = `감지할 소리 아님 (기준 ${Math.round(THRESHOLD * 100)}% 미만)`;
+    el.soundDetail.textContent = `알림 대상 아님 (알림 기준 ${Math.round(THRESHOLD * 100)}%)`;
   }
 
   el.topList.replaceChildren(

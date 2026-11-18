@@ -1,0 +1,30 @@
+{
+  "_note": "자동 생성 파일. 직접 고치지 말고 configs/classes.yaml을 고친 뒤 src/export_web_classes.py를 실행하세요.",
+  "version": 1,
+  "classes": [
+    {
+      "id": "siren",
+      "name_ko": "사이렌",
+      "priority": 1,
+      "enabled": true
+    },
+    {
+      "id": "horn",
+      "name_ko": "경적",
+      "priority": 1,
+      "enabled": true
+    },
+    {
+      "id": "alarm",
+      "name_ko": "화재·경보음",
+      "priority": 1,
+      "enabled": false
+    },
+    {
+      "id": "background",
+      "name_ko": "배경",
+      "priority": 0,
+      "enabled": true
+    }
+  ]
+}

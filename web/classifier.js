@@ -1,6 +1,6 @@
 // 소리 종류 분류: MediaPipe Audio Classifier + YAMNet (브라우저 안에서 실행)
 // YAMNet은 AudioSet 521개 라벨 중 어떤 소리인지 점수를 낸다.
-// 우리는 그중 감지할 4종에 해당하는 라벨만 묶어서 판단한다.
+// 우리는 그중 알림 대상 클래스(configs/classes.yaml 기준)에 해당하는 라벨만 묶어서 판단한다.
 
 import {
   AudioClassifier,
@@ -14,42 +14,43 @@ const MODEL_URL =
 // 이 점수 이상이면 '감지'로 본다. 2주차에 Python으로 평가한 뒤 조정한다.
 export const THRESHOLD = 0.3;
 
-// 감지할 소리 4종 (configs/targets.json과 같은 내용을 유지한다)
-// labels: YAMNet 라벨 이름 (yamnet_class_map.csv 기준)
-export const TARGETS = [
-  {
-    id: 'siren',
-    name: '사이렌',
-    level: 'urgent',
-    labels: [
-      'Siren',
-      'Civil defense siren',
-      'Police car (siren)',
-      'Ambulance (siren)',
-      'Fire engine, fire truck (siren)',
-      'Emergency vehicle',
-    ],
-  },
-  {
-    id: 'car_horn',
-    name: '자동차 경적',
-    level: 'urgent',
-    labels: ['Vehicle horn, car horn, honking', 'Air horn, truck horn', 'Toot'],
-  },
-  {
-    id: 'fire_alarm',
-    name: '화재경보',
-    level: 'urgent',
-    // 'Alarm'은 범위가 넓어 오알림이 생길 수 있지만, 놓치지 않는 쪽을 우선해 포함한다
-    labels: ['Smoke detector, smoke alarm', 'Fire alarm', 'Alarm'],
-  },
-  {
-    id: 'doorbell',
-    name: '초인종·노크',
-    level: 'normal',
-    labels: ['Doorbell', 'Ding-dong', 'Knock'],
-  },
-];
+// 우리 클래스 id(configs/classes.yaml) → YAMNet 라벨 (yamnet_class_map.csv의 display_name)
+// 클래스의 이름·우선순위·사용 여부는 classes.yaml이 정하고(web/classes.json으로 내보냄),
+// 여기에는 "YAMNet의 어떤 라벨을 그 클래스로 볼지"만 둔다.
+export const YAMNET_LABELS = {
+  siren: [
+    'Siren',
+    'Civil defense siren',
+    'Police car (siren)',
+    'Ambulance (siren)',
+    'Fire engine, fire truck (siren)',
+    'Emergency vehicle',
+  ],
+  // 자동차 + 이륜차 경적을 하나로 (classes.yaml과 같은 기준)
+  horn: ['Vehicle horn, car horn, honking', 'Air horn, truck horn', 'Toot'],
+  // 2차용 (classes.yaml에서 enabled: false인 동안은 쓰이지 않음)
+  alarm: ['Smoke detector, smoke alarm', 'Fire alarm', 'Alarm'],
+  knock_doorbell: ['Doorbell', 'Ding-dong', 'Knock'],
+};
+
+const LEVEL_BY_PRIORITY = { 1: 'urgent', 2: 'normal' };
+
+// web/classes.json을 읽어 알림 대상만 고른다
+// (enabled: true이고 priority가 1 이상이며, YAMNet 라벨이 정해진 클래스)
+export async function loadTargets() {
+  const res = await fetch('classes.json', { cache: 'no-cache' });
+  if (!res.ok) throw new Error(`classes.json을 읽지 못했어요 (${res.status})`);
+  const { classes } = await res.json();
+  return classes
+    .filter((c) => c.enabled && c.priority > 0 && YAMNET_LABELS[c.id])
+    .map((c) => ({
+      id: c.id,
+      name: c.name_ko,
+      priority: c.priority,
+      level: LEVEL_BY_PRIORITY[c.priority] ?? 'normal',
+      labels: YAMNET_LABELS[c.id],
+    }));
+}
 
 // 상위 결과를 보여 줄 때 쓰는 한국어 이름 (없으면 영어 그대로)
 const KO = {
@@ -113,8 +114,8 @@ export async function loadClassifier() {
   });
 }
 
-// samples: 약 1초 분량의 오디오, sampleRate: 그 샘플레이트
-export function analyze(classifier, samples, sampleRate) {
+// samples: 약 1초 분량의 오디오, sampleRate: 그 샘플레이트, targets: loadTargets() 결과
+export function analyze(classifier, samples, sampleRate, targets) {
   const results = classifier.classify(samples, sampleRate);
 
   // 입력이 여러 조각으로 나뉘어 분석되면, 라벨마다 가장 높은 점수를 쓴다
@@ -131,7 +132,7 @@ export function analyze(classifier, samples, sampleRate) {
     .slice(0, 3)
     .map(([label, score]) => ({ label, name: koName(label), score }));
 
-  const targets = TARGETS.map((t) => {
+  const scored = targets.map((t) => {
     let score = 0;
     let label = '';
     for (const l of t.labels) {
@@ -142,7 +143,7 @@ export function analyze(classifier, samples, sampleRate) {
   });
 
   const hit =
-    targets.filter((t) => t.score >= THRESHOLD).sort((a, b) => b.score - a.score)[0] ?? null;
+    scored.filter((t) => t.score >= THRESHOLD).sort((a, b) => b.score - a.score)[0] ?? null;
 
-  return { top, targets, hit };
+  return { top, targets: scored, hit };
 }
