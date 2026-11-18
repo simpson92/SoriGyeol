@@ -36,7 +36,7 @@ AUDIO16K = ROOT / "data" / "processed" / "audio16k"
 
 SR = 16000
 WIN, HOP = 1.0, 0.5
-SILENCE_DB = -60.0
+SILENCE_DB = -90.0  # 디지털 무음만 버림 (-60은 멀리서 작게 들리는 진짜 사이렌까지 지웠음)
 QUIET_DB = 10.0
 QUIET_RULE = {"datasets": {"esc50", "us8k"}, "classes": {"siren", "horn"}}
 MAX_PER_FILE = 10
