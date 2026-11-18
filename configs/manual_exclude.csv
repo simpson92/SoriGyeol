@@ -1,0 +1,5 @@
+# 직접 듣고/보고 확인해서 학습에서 빼는 파일. build_manifest.py가 읽어서 class를 exclude로 바꾼다.
+# path는 manifest.csv의 path와 같은 형식 (프로젝트 폴더 기준)
+path,reason
+data/raw/urbansound8k/UrbanSound8K/audio/fold4/176638-5-0-1.wav,배경(engine_idling)에 경적 섞임 - 2026-11-18 노트북 C 확인
+data/raw/urbansound8k/UrbanSound8K/audio/fold4/176638-5-0-2.wav,배경(engine_idling)에 경적 2번 섞임 - 2026-11-18 노트북 C 확인

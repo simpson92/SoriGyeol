@@ -3,6 +3,7 @@
 AI Hub 도시 소리, UrbanSound8K, ESC-50의 소리 파일을 모두 찾아서
 "파일 경로 · 원래 라벨 · 우리 클래스 · 원본 녹음 ID · 길이" 같은 형식의 표 하나로 만든다.
 라벨 연결은 configs/classes.yaml 을 따른다. 학습 코드는 이 표만 읽으면 된다.
+직접 확인해서 문제가 있는 파일은 configs/manual_exclude.csv 에 적으면 exclude로 바뀐다.
 
 사용법 (프로젝트 폴더에서):
     python src/build_manifest.py
@@ -16,6 +17,7 @@ AI Hub 도시 소리, UrbanSound8K, ESC-50의 소리 파일을 모두 찾아서
     orig_label   데이터셋의 원래 라벨
     class        우리 클래스 (siren, horn, background, alarm ...) 또는 exclude
     use          True면 1차 학습에 사용 (classes.yaml에서 enabled: true인 클래스)
+    note         수동 제외 이유 (configs/manual_exclude.csv)
     source_id    원본 녹음 ID. 같은 ID는 반드시 같은 split에 넣는다
                  (aihub_<라벨 파일 이름> / fs_<Freesound 번호>)
     orig_split   데이터셋이 원래 나눠 둔 구분 (aihub: train/val, us8k·esc50: fold번호)
@@ -34,6 +36,7 @@ from tqdm import tqdm
 
 ROOT = Path(__file__).resolve().parents[1]          # 프로젝트 폴더
 CONFIG = ROOT / "configs" / "classes.yaml"
+MANUAL_EXCLUDE = ROOT / "configs" / "manual_exclude.csv"
 OUT = ROOT / "data" / "processed" / "manifest.csv"
 
 AIHUB_META = {  # 열 이름: JSON에서 꺼낼 위치
@@ -194,10 +197,21 @@ def main() -> None:
         if col not in df:
             df[col] = None
     df = add_audio_info(df)
-    df["use"] = df["class"].isin(enabled)
     df["path"] = [Path(p).relative_to(ROOT).as_posix() for p in df["path"]]
 
-    cols = ["path", "dataset", "orig_label", "class", "use", "source_id", "orig_split",
+    # 직접 확인해서 문제가 있는 파일 → exclude
+    df["note"] = ""
+    if MANUAL_EXCLUDE.exists():
+        ex = pd.read_csv(MANUAL_EXCLUDE, comment="#")
+        m = df["path"].isin(ex["path"])
+        df.loc[m, "class"] = "exclude"
+        df.loc[m, "note"] = df.loc[m, "path"].map(dict(zip(ex["path"], ex["reason"])))
+        missing = set(ex["path"]) - set(df["path"])
+        print(f"수동 제외: {m.sum()}개 적용" + (f" (목록에 있지만 못 찾은 경로 {len(missing)}개)" if missing else ""))
+
+    df["use"] = df["class"].isin(enabled)
+
+    cols = ["path", "dataset", "orig_label", "class", "use", "note", "source_id", "orig_split",
             "duration", "sample_rate", "channels", *AIHUB_META]
     df = df[cols]
 
