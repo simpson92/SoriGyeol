@@ -228,6 +228,38 @@ body {
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn:focus-visible { outline: 3px solid var(--normal); outline-offset: 2px; }
 
+/* ── 알림 화면 깜빡임 ── */
+/* 초당 2회(0.5초 주기)로 3번 깜빡임: 광과민 발작 기준(초당 3회 초과 금지)보다 느리게 */
+.flash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  animation: flash-blink 0.5s steps(1, end) 3;
+}
+.flash[hidden] { display: none; }
+.flash.is-urgent { --flash-bg: #c2410c; }
+.flash.is-normal { --flash-bg: #2862c9; }
+.flash-text {
+  margin: 0;
+  padding: 0 16px;
+  color: #fff;
+  font-size: 3.5rem;
+  font-weight: 800;
+  text-align: center;
+  word-break: keep-all;
+}
+@keyframes flash-blink {
+  0%   { background: var(--flash-bg, #c2410c); }
+  50%  { background: rgba(22, 35, 63, 0.92); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flash { animation: none; background: var(--flash-bg, #c2410c); }
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px; height: 1px;

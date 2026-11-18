@@ -11,7 +11,7 @@ const WASM_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-audio@1.2.3/was
 const MODEL_URL =
   'https://storage.googleapis.com/mediapipe-models/audio_classifier/yamnet/float32/1/yamnet.tflite';
 
-// 이 점수 이상이면 '감지'로 본다. 2주차에 Python으로 평가한 뒤 조정한다.
+// 기본 기준 점수. 클래스별 값은 classes.yaml의 threshold(준형 평가 결과)가 있으면 그것을 쓴다.
 export const THRESHOLD = 0.3;
 
 // 우리 클래스 id(configs/classes.yaml) → YAMNet 라벨 (yamnet_class_map.csv의 display_name)
@@ -48,6 +48,7 @@ export async function loadTargets() {
       name: c.name_ko,
       priority: c.priority,
       level: LEVEL_BY_PRIORITY[c.priority] ?? 'normal',
+      threshold: c.threshold ?? THRESHOLD, // classes.yaml에 threshold가 있으면 그 값, 없으면 기본값
       labels: YAMNET_LABELS[c.id],
     }));
 }
@@ -143,7 +144,7 @@ export function analyze(classifier, samples, sampleRate, targets) {
   });
 
   const hit =
-    scored.filter((t) => t.score >= THRESHOLD).sort((a, b) => b.score - a.score)[0] ?? null;
+    scored.filter((t) => t.score >= t.threshold).sort((a, b) => b.score - a.score)[0] ?? null;
 
   return { top, targets: scored, hit };
 }
