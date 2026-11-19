@@ -1,0 +1,12 @@
+﻿날짜,작성자,구분,항목,세부내용,상태,관련
+2026-11-17,준형,Done,AI Hub 압축 해제 스크립트,한글 파일명(CP949) 복원하며 압축 해제 · --delete 옵션으로 확인 후 zip 삭제,완료,1de5356 · src/unzip_aihub.py
+2026-11-17,준형,Done,데이터 다운로드,AI Hub 도시 소리(교통소음 wav 28643 · json 67793) · ESC-50 2000 · UrbanSound8K 8732 · FSD50K 라벨만,완료,21df466
+2026-11-17,준형,Done,AI Hub · FSD50K 라벨 분석,AI Hub wav는 이미 라벨 구간만 잘린 파일 · 녹음 방식 인위적·생성 · FSD50K에 화재경보 전용 클래스 없음,완료,21df466
+2026-11-17,준형,Done,1차 클래스 확정,사이렌 3208 · 경적(자동차+이륜차) 9136 · 배경 · 화재·경보음은 꺼둠 · 데이터셋별 라벨 연결표,완료,21df466 · configs/classes.yaml
+2026-11-17,준형,Fix,.gitkeep 정리,불필요한 빈 폴더 표시 파일 삭제 (notebooks만 남김),완료,1751359
+2026-11-17,하민,Done,웹 마이크 음량 표시 · Pages 배포,마이크 입력 소리 크기(dBFS) 화면 · GitHub Actions 배포 설정,완료,ed8c495 · .github/workflows/deploy.yml
+2026-11-17,하민,Done,웹 소리 종류 표시 · 방향 실험,브라우저 안 YAMNet(MediaPipe)으로 소리 분류 · 채널 수 · 상관 · 시간차 측정,완료,PR #1 · ac8e1cc
+2026-11-17,하민,Docs,Git 규칙 문서,브랜치 · 커밋 메시지 규칙,완료,15a0707 · docs/git-workflow.md
+2026-11-17,준형,Fix,Pages 배포 실패 해결,Actions #1 · #2 실패(Source 설정 전) → Settings Pages Source를 GitHub Actions로 변경 → #3 · #4 성공,완료,deploy.yml
+2026-11-17,준형,Fix,push 거절 해결,하민 커밋이 먼저 올라가 push 거절 → git pull --rebase 후 push · pull.rebase true 설정,완료,-
+2026-11-17,준형,Done,AI Hub 이용정책 확인,승인 없는 제3자 제공 금지 → 팀원도 직접 신청 · 출처 표시 의무(README · 모델),완료,-

@@ -1,0 +1,4 @@
+﻿날짜,작성자,구분,항목,세부내용,상태,관련
+2026-11-16,준형,Done,레포 생성 · 초기 구조,레포 이름 정리(-SoriGyeol- → SoriGyeol) · 폴더 구조(configs · docs · notebooks · src · web · data · models) · .gitignore · README 초안,완료,cec992b
+2026-11-16,준형,Docs,개발 일지 시작,docs/devlog.md 생성 · 단계별로 한 일 · 명령어 · 결정과 이유 · 문제와 해결 기록,완료,ba08dd6
+2026-11-16,준형,Done,개발 환경 구성,uv · Python 3.11.18 가상환경 · PyTorch 2.11.0 + cu128 · RTX 3060 인식 확인 · librosa 등 라이브러리 · requirements.txt,완료,86ed5bb
