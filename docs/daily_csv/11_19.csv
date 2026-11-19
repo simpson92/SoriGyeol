@@ -9,3 +9,7 @@
 2026-11-19,준형,Docs,의논 결과 PDF,결정 6개 · 이유 · 할 일 체크리스트 → 하민 공유,완료,soriGyeol_decisions_2026-11-19.pdf
 2026-11-19,준형,Docs,Git 규칙 Merge 규칙 수정,순서 A 합치기에 Merge 규칙 · Revert · PR 설명 쓰기 추가,완료,56d4f5d · docs/git-workflow.md
 2026-11-19,준형,Docs,개발 일지 · 데일리 CSV,11-19 의논 결과 일지 · 11-16~11-19 데일리 CSV 시작,완료,docs/devlog.md · docs/daily_csv/
+2026-11-19,하민,Done,YAMNet 라벨 연결표 분리,web/classifier.js의 라벨 묶음 → configs/yamnet_map.yaml · export_web_classes.py가 classes.json에 yamnet_labels로 포함 · 라벨 중복 · 라벨 없는 알림 대상 검사 · 의논 ① 반영,완료,PR #5 · 09f3e6f
+2026-11-19,하민,Fix,알림 기준 문구 이동,본 화면은 '알림 대상 아님'만 · 클래스별 알림 기준은 개발 정보 칸에 표시 · 의논 ③-2 반영,완료,PR #5 · 09f3e6f · web/main.js
+2026-11-19,하민,Docs,Git 규칙 PR 필수 파일 추가,configs/yamnet_map.yaml도 PR 필수 (web/classes.json 같은 PR),완료,PR #5 · docs/git-workflow.md
+2026-11-19,하민,Docs,README 데이터 출처 · 라이선스,AI Hub 출처 문구 · ESC-50 · US8K · FSD50K 인용과 라이선스 · 이용 조건 표 · 사용 모델(YAMNet · MediaPipe),완료,PR #5 · 7c8ecd2 · README.md
