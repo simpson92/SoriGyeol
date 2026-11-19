@@ -1,0 +1,38 @@
+# 소리결(SoriGyeol) YAMNet 라벨 연결표
+# - YAMNet(AudioSet 521개 라벨)의 어떤 라벨을 우리 클래스로 볼지 정한다
+# - 웹(web/classifier.js)과 Python 평가가 이 파일 하나를 같이 읽는다
+#   → 한쪽만 고쳐져서 평가로 정한 기준 점수가 웹과 어긋나는 일을 막기 위함
+# - 클래스 점수 = 묶은 라벨 점수 중 최댓값 (max). 합 방식과 비교 평가 후 확정 예정
+# - 라벨 이름은 yamnet_class_map.csv의 display_name과 글자 하나까지 같아야 한다
+#   https://github.com/tensorflow/models/blob/master/research/audioset/yamnet/yamnet_class_map.csv
+#
+# 고친 뒤에는 python src/export_web_classes.py 를 실행해 web/classes.json도 같은 PR에 넣는다.
+
+version: 1
+model: yamnet          # MediaPipe audio_classifier/yamnet/float32 (웹과 같은 모델 파일)
+
+mapping:
+  siren:
+    - Siren
+    - Civil defense siren
+    - Police car (siren)
+    - Ambulance (siren)
+    - Fire engine, fire truck (siren)
+    - Emergency vehicle
+
+  horn:                 # 자동차 + 이륜차 경적 (classes.yaml과 같은 기준)
+    - Vehicle horn, car horn, honking
+    - Air horn, truck horn
+    - Toot
+
+  # 아래는 classes.yaml에서 아직 꺼져 있거나 후보인 클래스 (웹 알림에는 쓰이지 않음)
+  alarm:
+    # 'Alarm'은 범위가 넓어 알람 시계에도 59%가 나옴 (11-18 테스트) → 켤 때 제외 검토
+    - Smoke detector, smoke alarm
+    - Fire alarm
+    - Alarm
+
+  knock_doorbell:
+    - Doorbell
+    - Ding-dong
+    - Knock

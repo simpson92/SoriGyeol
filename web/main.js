@@ -1,7 +1,7 @@
 // 소리결: 마이크 입력을 받아 소리 크기(dBFS)와 소리 종류를 화면에 보여 준다.
 // 소리는 브라우저 안에서만 분석하고 저장·전송하지 않는다.
 
-import { loadClassifier, loadTargets, analyze, THRESHOLD } from './classifier.js';
+import { loadClassifier, loadTargets, analyze } from './classifier.js';
 import { createStereoProbe, judgeStereo } from './stereo.js';
 import { createAlertEngine } from './alert.js';
 
@@ -47,6 +47,7 @@ const el = {
   stDiff: document.getElementById('stDiff'),
   stCorr: document.getElementById('stCorr'),
   stLag: document.getElementById('stLag'),
+  thresholds: document.getElementById('thresholds'),
   flash: document.getElementById('flash'),
   flashText: document.getElementById('flashText'),
 };
@@ -286,7 +287,7 @@ function renderSound({ top, targets: scored }, ms) {
   } else {
     el.soundCard.className = 'sound-card';
     el.soundName.textContent = top[0] ? top[0].name : '—';
-    el.soundDetail.textContent = `알림 대상 아님 (알림 기준 ${Math.round(THRESHOLD * 100)}%)`;
+    el.soundDetail.textContent = '알림 대상 아님';
   }
 
   el.topList.replaceChildren(
@@ -380,6 +381,9 @@ function updateInfo() {
     `샘플레이트 ${audioCtx.sampleRate}Hz · 마이크: ${track.label || '기본 마이크'}` +
     ` · 잡음 억제 ${settings.noiseSuppression ? '켜짐' : '꺼짐'}` +
     (ms ? ` · 분류 ${ms}ms` : '');
+  // 알림 기준 점수는 사용자에게는 필요 없는 내부 설정이라 개발 정보 칸에만 보여 준다 (11-19 의논 ③-2)
+  el.thresholds.textContent =
+    '알림 기준: ' + (targets.map((t) => `${t.name} ${Math.round(t.threshold * 100)}%`).join(' · ') || '없음');
 }
 
 async function start() {
