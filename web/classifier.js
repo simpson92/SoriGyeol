@@ -14,42 +14,26 @@ const MODEL_URL =
 // 기본 기준 점수. 클래스별 값은 classes.yaml의 threshold(준형 평가 결과)가 있으면 그것을 쓴다.
 export const THRESHOLD = 0.3;
 
-// 우리 클래스 id(configs/classes.yaml) → YAMNet 라벨 (yamnet_class_map.csv의 display_name)
-// 클래스의 이름·우선순위·사용 여부는 classes.yaml이 정하고(web/classes.json으로 내보냄),
-// 여기에는 "YAMNet의 어떤 라벨을 그 클래스로 볼지"만 둔다.
-export const YAMNET_LABELS = {
-  siren: [
-    'Siren',
-    'Civil defense siren',
-    'Police car (siren)',
-    'Ambulance (siren)',
-    'Fire engine, fire truck (siren)',
-    'Emergency vehicle',
-  ],
-  // 자동차 + 이륜차 경적을 하나로 (classes.yaml과 같은 기준)
-  horn: ['Vehicle horn, car horn, honking', 'Air horn, truck horn', 'Toot'],
-  // 2차용 (classes.yaml에서 enabled: false인 동안은 쓰이지 않음)
-  alarm: ['Smoke detector, smoke alarm', 'Fire alarm', 'Alarm'],
-  knock_doorbell: ['Doorbell', 'Ding-dong', 'Knock'],
-};
+// 클래스마다 묶을 YAMNet 라벨은 configs/yamnet_map.yaml에서 정하고(Python 평가와 같은 파일),
+// src/export_web_classes.py가 web/classes.json의 yamnet_labels로 내보낸다.
 
 const LEVEL_BY_PRIORITY = { 1: 'urgent', 2: 'normal' };
 
 // web/classes.json을 읽어 알림 대상만 고른다
-// (enabled: true이고 priority가 1 이상이며, YAMNet 라벨이 정해진 클래스)
+// (enabled: true이고 priority가 1 이상이며, yamnet_map.yaml에 YAMNet 라벨이 정해진 클래스)
 export async function loadTargets() {
   const res = await fetch('classes.json', { cache: 'no-cache' });
   if (!res.ok) throw new Error(`classes.json을 읽지 못했어요 (${res.status})`);
   const { classes } = await res.json();
   return classes
-    .filter((c) => c.enabled && c.priority > 0 && YAMNET_LABELS[c.id])
+    .filter((c) => c.enabled && c.priority > 0 && c.yamnet_labels?.length)
     .map((c) => ({
       id: c.id,
       name: c.name_ko,
       priority: c.priority,
       level: LEVEL_BY_PRIORITY[c.priority] ?? 'normal',
       threshold: c.threshold ?? THRESHOLD, // classes.yaml에 threshold가 있으면 그 값, 없으면 기본값
-      labels: YAMNET_LABELS[c.id],
+      labels: c.yamnet_labels,
     }));
 }
 

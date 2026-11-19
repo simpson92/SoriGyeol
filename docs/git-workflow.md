@@ -6,7 +6,7 @@
 
 - `main`은 항상 동작하는 상태로 둔다. GitHub Pages가 `main`의 `web/`을 배포한다.
 - **사이트에 영향이 있는 변경**(`web/`, `.github/`)은 작업마다 브랜치를 만들고, 끝나면 PR로 `main`에 합친 뒤 지운다.
-- **예외: `configs/classes.yaml`** 은 웹 알림 대상을 바꾸므로 브랜치 → PR로 고친다. 고친 뒤 `python src/export_web_classes.py`를 실행해 `web/classes.json`도 같은 PR에 넣는다.
+- **예외: `configs/classes.yaml`, `configs/yamnet_map.yaml`** 은 웹 알림 대상을 바꾸므로 브랜치 → PR로 고친다. 고친 뒤 `python src/export_web_classes.py`를 실행해 `web/classes.json`도 같은 PR에 넣는다.
 - **그 외**(`docs/`, `src/`, `configs/`, `notebooks/` 등)는 `main`에 바로 push해도 된다. push 전에 항상 `git pull`.
   - 평가 스크립트처럼 큰 작업은 리뷰 기록을 남기기 위해 PR을 권장한다.
 - 브랜치를 며칠 이상 오래 끌지 않는다. 길어지면 작게 나눠서 먼저 합친다.
@@ -15,8 +15,8 @@
 
 | 바꾼 파일 | 방식 |
 |---|---|
-| `web/`, `.github/`, `configs/classes.yaml` | **브랜치 → PR** (필수) |
-| `src/`, `notebooks/`, `configs/`(classes.yaml 제외) 중 큰 작업 | 브랜치 → PR (권장) |
+| `web/`, `.github/`, `configs/classes.yaml`, `configs/yamnet_map.yaml` | **브랜치 → PR** (필수) |
+| `src/`, `notebooks/`, `configs/`(위 두 파일 제외) 중 큰 작업 | 브랜치 → PR (권장) |
 | `docs/`, 작은 수정 | **`main`에 바로 push** |
 
 ## 브랜치 이름
