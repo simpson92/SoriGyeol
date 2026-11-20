@@ -84,6 +84,14 @@ body {
 
 .sound-detail { margin: 2px 0 0; font-size: 0.9rem; color: var(--muted); }
 
+/* 가까워지는 중 / 멀어지는 중 (색만으로 구분하지 않도록 화살표와 글자를 같이 쓴다) */
+.sound-trend { margin: 4px 0 0; font-size: 1.2rem; font-weight: 800; }
+.sound-trend[hidden] { display: none; }
+.sound-trend.is-approach { color: #b91c1c; }
+.sound-trend.is-approach::before { content: "▲ "; }
+.sound-trend.is-recede { color: var(--muted); }
+.sound-trend.is-recede::before { content: "▼ "; }
+
 /* 비슷한 소리 순위: 한 줄 칩 */
 .top-list {
   display: flex;
@@ -243,11 +251,19 @@ body {
 .flash[hidden] { display: none; }
 .flash.is-urgent { --flash-bg: #c2410c; }
 .flash.is-normal { --flash-bg: #2862c9; }
+/* 깜빡이는 동안에도 '지금 들리는 소리' 카드는 맨 위에 그대로 보인다 (소리 이름·가까워짐 표시를 가리지 않음) */
+body.is-flashing .sound-card {
+  position: relative;
+  z-index: 101;
+  box-shadow: 0 0 0 4px #fff, 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+/* 이름은 카드에 이미 크게 있으므로 깜빡임 위 글자는 카드 아래 빈 곳에 작게 둔다 */
+.flash { align-items: flex-end; padding-bottom: 120px; }
 .flash-text {
   margin: 0;
   padding: 0 16px;
   color: #fff;
-  font-size: 3.5rem;
+  font-size: 2rem;
   font-weight: 800;
   text-align: center;
   word-break: keep-all;

@@ -18,6 +18,7 @@
     <section class="sound-card" id="soundCard" aria-labelledby="sound-title">
       <h2 id="sound-title" class="card-title">지금 들리는 소리</h2>
       <p class="sound-name" id="soundName" aria-live="assertive">—</p>
+      <p class="sound-trend" id="soundTrend" aria-live="polite" hidden></p>
       <p class="sound-detail" id="soundDetail">감지를 시작하면 약 1초마다 소리 종류를 판단해요.</p>
       <ol class="top-list" id="topList" aria-label="비슷한 소리 순위">
         <li class="top-empty">아직 결과가 없어요</li>
@@ -61,6 +62,7 @@
         dBFS는 마이크 최대 크기를 0으로 둔 상대값이라 소음 측정기(dB SPL)와 숫자가 달라요.
       </p>
       <p id="thresholds" class="dev-hint"></p>
+      <p id="trendInfo" class="dev-hint"></p>
       <p id="info" class="dev-hint"></p>
     </details>
 

@@ -99,13 +99,14 @@ export async function loadClassifier() {
   });
 }
 
-// samples: 약 1초 분량의 오디오, sampleRate: 그 샘플레이트, targets: loadTargets() 결과
+// samples: 최근 0.975초 오디오, sampleRate: 그 샘플레이트, targets: loadTargets() 결과
 export function analyze(classifier, samples, sampleRate, targets) {
   const results = classifier.classify(samples, sampleRate);
 
-  // 입력이 여러 조각으로 나뉘어 분석되면, 라벨마다 가장 높은 점수를 쓴다
+  // 0.975초를 넣어도 리샘플링 끝자락 때문에 빈 소리를 채운 조각이 하나 더 생기면
+  // '조용함'이 높게 끼어든다 (11-20 PC 시험). 실제 소리가 담긴 첫 조각만 쓴다.
   const best = new Map();
-  for (const result of results) {
+  for (const result of results.slice(0, 1)) {
     const categories = result.classifications?.[0]?.categories ?? [];
     for (const c of categories) {
       if ((best.get(c.categoryName) ?? 0) < c.score) best.set(c.categoryName, c.score);
@@ -130,5 +131,6 @@ export function analyze(classifier, samples, sampleRate, targets) {
   const hit =
     scored.filter((t) => t.score >= t.threshold).sort((a, b) => b.score - a.score)[0] ?? null;
 
-  return { top, targets: scored, hit };
+  // windows: 입력이 몇 조각으로 분석됐는지 (0.975초를 넣으면 1개가 정상)
+  return { top, targets: scored, hit, windows: results.length };
 }

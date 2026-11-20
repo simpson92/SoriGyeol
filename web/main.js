@@ -4,6 +4,7 @@
 import { loadClassifier, loadTargets, analyze } from './classifier.js';
 import { createStereoProbe, judgeStereo } from './stereo.js';
 import { createAlertEngine } from './alert.js';
+import { createApproachTracker, TREND_TEXT } from './approach.js';
 
 // ── 소리 크기 표시 설정 ──
 const MIN_DB = -80;          // 화면에 표시할 가장 작은 값
@@ -13,8 +14,10 @@ const HISTORY_SECONDS = 10;  // 그래프에 보여 줄 시간
 const PEAK_HOLD_MS = 1500;   // 최대값 표시를 유지하는 시간
 
 // ── 소리 분류 설정 ──
-const WINDOW_SEC = 1.0;      // 한 번에 분석할 길이 (YAMNet 입력 약 0.975초)
-const CLASSIFY_EVERY_SEC = 0.5; // 0.5초마다 최근 1초를 분석
+// YAMNet은 0.975초(16kHz 15,600샘플) 단위로 본다. 1초를 넣으면 남는 0.025초에 빈 소리를 채운
+// 두 번째 결과가 생기므로, 최근 0.975초만 넣어 결과를 1개로 맞춘다. Python 평가·임베딩도 같은 방식 (11-20)
+const WINDOW_SEC = 0.975;
+const CLASSIFY_EVERY_SEC = 0.5; // 0.5초마다 최근 0.975초를 분석
 // ── 알림 설정 ──
 // 진동 패턴 (ms): 긴급 = 길게 3회, 주의 = 짧게 2회. iPhone Safari는 진동을 지원하지 않아 화면 깜빡임만 동작
 const VIBRATE = { urgent: [500, 200, 500, 200, 500], normal: [100, 150, 100] };
@@ -38,6 +41,8 @@ const el = {
   soundCard: document.getElementById('soundCard'),
   soundName: document.getElementById('soundName'),
   soundDetail: document.getElementById('soundDetail'),
+  soundTrend: document.getElementById('soundTrend'),
+  trendInfo: document.getElementById('trendInfo'),
   topList: document.getElementById('topList'),
   modelStatus: document.getElementById('modelStatus'),
   stVerdict: document.getElementById('stereoVerdict'),
@@ -74,6 +79,7 @@ let ringPos = 0;
 let ringFilled = 0;
 let sinceLastClassify = 0;
 const alertEngine = createAlertEngine();
+const approach = createApproachTracker(); // 가까워지는 중 / 멀어지는 중
 let wakeLock = null;
 let flashTimer = null;
 
@@ -187,6 +193,7 @@ function drawHistory(now) {
 function loop(now) {
   const db = measureDb();
   history.push({ t: now, db: Number.isFinite(db) ? Math.max(db, MIN_DB) : MIN_DB });
+  approach.push(db, now);
   renderLevel(db, now);
   if (stereoProbe && now - lastStereoAt >= STEREO_EVERY_MS) {
     lastStereoAt = now;
@@ -239,7 +246,7 @@ async function prepareClassifier() {
   }
 }
 
-// AudioWorklet에서 2048 샘플씩 들어오는 소리를 최근 1초 버퍼에 쌓는다
+// AudioWorklet에서 2048 샘플씩 들어오는 소리를 최근 0.975초 버퍼에 쌓는다
 function onAudioChunk(chunk) {
   for (let i = 0; i < chunk.length; i++) {
     ring[ringPos] = chunk[i];
@@ -268,7 +275,7 @@ function classifyNow() {
   renderSound(result, ms);
 }
 
-function renderSound({ top, targets: scored }, ms) {
+function renderSound({ top, targets: scored, windows }, ms) {
   const now = performance.now();
   const { fire, showing, pending } = alertEngine.update(scored, now);
 
@@ -302,12 +309,29 @@ function renderSound({ top, targets: scored }, ms) {
     }),
   );
 
+  renderTrend(approach.judge(showing?.id ?? null));
+
   el.info.dataset.classifyMs = ms.toFixed(0);
+  el.info.dataset.windows = String(windows);
   updateInfo();
+}
+
+// 확정된 사이렌·경적이 화면에 있을 때만 '가까워지는 중 / 멀어지는 중'을 덧붙인다 (애매하면 숨김)
+function renderTrend({ state, slope, up, down, off = 0 }) {
+  el.soundTrend.hidden = !state;
+  el.soundTrend.className = state ? `sound-trend is-${state}` : 'sound-trend';
+  el.soundTrend.textContent = state ? TREND_TEXT[state] : '';
+  el.trendInfo.textContent = slope === null
+    ? '소리 크기 변화: 알림 대상이 확정되면 계산해요'
+    : `소리 크기 변화: ${slope > 0 ? '+' : ''}${slope.toFixed(1)} dB/초` +
+      ` · 커짐 연속 ${up}번(2번이면 표시) · 작아짐 연속 ${down}번(3번이면 표시)` +
+      (state ? ` → ${TREND_TEXT[state]} (벗어남 ${off}/3)` : '');
 }
 
 function resetSound() {
   alertEngine.reset();
+  approach.reset();
+  renderTrend({ state: null, slope: null, up: 0, down: 0 });
   hideFlash();
   el.soundCard.className = 'sound-card';
   el.soundName.textContent = '—';
@@ -325,7 +349,9 @@ function notify(target) {
   if ('vibrate' in navigator) {
     navigator.vibrate(VIBRATE[target.level] ?? VIBRATE.normal);
   }
-  // 화면 전체 깜빡임 (모든 기기)
+  // 화면 전체 깜빡임 (모든 기기). '지금 들리는 소리' 카드는 깜빡임 위에 그대로 보이게 둔다
+  // (11-20 시험: 전체를 덮으면 '가까워지는 중' 같은 정보를 못 봄)
+  document.body.classList.add('is-flashing');
   el.flashText.textContent = target.name;
   el.flash.className = `flash is-${target.level}`;
   el.flash.hidden = false;
@@ -335,6 +361,7 @@ function notify(target) {
 
 function hideFlash() {
   clearTimeout(flashTimer);
+  document.body.classList.remove('is-flashing');
   el.flash.hidden = true;
   el.flash.className = 'flash';
 }
@@ -380,7 +407,7 @@ function updateInfo() {
   el.info.textContent =
     `샘플레이트 ${audioCtx.sampleRate}Hz · 마이크: ${track.label || '기본 마이크'}` +
     ` · 잡음 억제 ${settings.noiseSuppression ? '켜짐' : '꺼짐'}` +
-    (ms ? ` · 분류 ${ms}ms` : '');
+    (ms ? ` · 분류 ${ms}ms (창 ${WINDOW_SEC}초, 결과 ${el.info.dataset.windows}개)` : '');
   // 알림 기준 점수는 사용자에게는 필요 없는 내부 설정이라 개발 정보 칸에만 보여 준다 (11-19 의논 ③-2)
   el.thresholds.textContent =
     '알림 기준: ' + (targets.map((t) => `${t.name} ${Math.round(t.threshold * 100)}%`).join(' · ') || '없음');
@@ -439,8 +466,9 @@ async function start() {
   lastStereoAt = 0;
   resetStereo();
 
-  // 소리 분류용: AudioWorklet으로 오디오를 받아 최근 1초를 모은다
-  ring = new Float32Array(Math.round(audioCtx.sampleRate * WINDOW_SEC));
+  // 소리 분류용: AudioWorklet으로 오디오를 받아 최근 0.975초를 모은다
+  // (내림: 44.1kHz 등에서 반올림으로 1샘플이 넘치면 빈 소리를 채운 결과가 하나 더 생길 수 있음)
+  ring = new Float32Array(Math.floor(audioCtx.sampleRate * WINDOW_SEC));
   ringPos = 0;
   ringFilled = 0;
   sinceLastClassify = 0;
