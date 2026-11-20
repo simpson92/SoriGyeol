@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>소리결 실험 · YAMNet 임베딩 확인</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 16px; max-width: 760px; line-height: 1.5; }
+    h1 { font-size: 1.2rem; }
+    .box { border: 1px solid #ccc; border-radius: 8px; padding: 12px; margin: 12px 0; }
+    .ok { color: #0a7d32; font-weight: 600; }
+    .bad { color: #c62828; font-weight: 600; }
+    pre { background: #f4f4f4; padding: 10px; border-radius: 6px; white-space: pre-wrap; font-size: 0.85rem; }
+    button { font-size: 1rem; padding: 6px 14px; margin-right: 6px; }
+  </style>
+</head>
+<body>
+  <h1>YAMNet 임베딩(1024개 숫자) 꺼내기 확인</h1>
+  <p>MediaPipe <b>0.10.21</b>로 AudioEmbedder와 AudioClassifier를 같이 띄워 봐요.
+     WAV 파일(예: <code>C:\temp\siren.wav</code>)을 고르면 결과가 나와요. 마이크는 안 써요.</p>
+
+  <div class="box">
+    <div>1) 모델 준비: <span id="load">불러오는 중…</span></div>
+    <div>2) 파일: <input type="file" id="file" accept="audio/*,.wav" disabled></div>
+  </div>
+
+  <div class="box">
+    <div>판정: <span id="verdict">파일을 골라 주세요</span></div>
+    <pre id="out"></pre>
+    <button id="copy" disabled>결과 복사 (준형님께 보내기용)</button>
+  </div>
+
+<script type="module">
+const VER = '0.10.21';
+const CDN = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-audio@${VER}`;
+const CLASSIFIER_URL =
+  'https://storage.googleapis.com/mediapipe-models/audio_classifier/yamnet/float32/1/yamnet.tflite';
+// 임베딩 모델 주소 후보 (첫 번째가 MediaPipe 공식 README 주소)
+const EMBEDDER_URLS = [
+  'https://storage.googleapis.com/mediapipe-assets/yamnet_embedding_metadata.tflite?generation=1668295071595506',
+  'https://storage.googleapis.com/mediapipe-models/audio_embedder/yamnet_embedding/float32/latest/yamnet_embedding.tflite',
+];
+const SR = 16000;
+
+const $ = (id) => document.getElementById(id);
+const log = [];
+const say = (s) => { log.push(s); $('out').textContent = log.join('\n'); };
+
+let embedder, classifier, embedderUrl;
+
+async function load() {
+  const t0 = performance.now();
+  const { FilesetResolver, AudioEmbedder, AudioClassifier } = await import(`${CDN}/audio_bundle.mjs`);
+  const fileset = await FilesetResolver.forAudioTasks(`${CDN}/wasm`);
+
+  classifier = await AudioClassifier.createFromOptions(fileset, {
+    baseOptions: { modelAssetPath: CLASSIFIER_URL }, maxResults: 3,
+  });
+
+  let lastErr;
+  for (const url of EMBEDDER_URLS) {
+    try {
+      // l2Normalize: false = 원래 값 그대로. Python 쪽도 같은 설정이어야 함
+      embedder = await AudioEmbedder.createFromOptions(fileset, {
+        baseOptions: { modelAssetPath: url }, l2Normalize: false, quantize: false,
+      });
+      embedderUrl = url;
+      break;
+    } catch (e) { lastErr = e; }
+  }
+  if (!embedder) throw lastErr ?? new Error('임베딩 모델을 못 불러왔어요');
+
+  $('load').innerHTML = `<span class="ok">완료</span> (${Math.round(performance.now() - t0)}ms)`;
+  $('file').disabled = false;
+  say(`[환경] ${navigator.userAgent}`);
+  say(`[버전] @mediapipe/tasks-audio@${VER}`);
+  say(`[임베딩 모델] ${embedderUrl}`);
+}
+
+async function decode(file) {
+  // 16kHz로 디코딩하면 브라우저가 알아서 리샘플링해 줌
+  const ctx = new OfflineAudioContext(1, SR, SR);
+  const buf = await ctx.decodeAudioData(await file.arrayBuffer());
+  const n = buf.length, out = new Float32Array(n);
+  for (let c = 0; c < buf.numberOfChannels; c++) {
+    const ch = buf.getChannelData(c);
+    for (let i = 0; i < n; i++) out[i] += ch[i] / buf.numberOfChannels;
+  }
+  return out;
+}
+
+const norm = (v) => Math.sqrt(v.reduce((s, x) => s + x * x, 0));
+
+async function run(file) {
+  log.length = 3; // 환경 정보는 남김
+  const samples = await decode(file);
+  say(`\n[파일] ${file.name} · ${(samples.length / SR).toFixed(2)}초`);
+
+  // A) 앱과 같은 조건: 1초(16000개)만 넣기
+  const one = samples.slice(0, SR);
+  let t = performance.now();
+  const e1 = embedder.embed(one, SR);
+  const tEmbed = performance.now() - t;
+  t = performance.now();
+  const c1 = classifier.classify(one, SR);
+  const tClass = performance.now() - t;
+
+  const v = e1[0]?.embeddings?.[0]?.floatEmbedding ?? [];
+  say(`\n[1초 창] 임베딩 결과 ${e1.length}개 · 길이 ${v.length} · 걸린 시간 ${tEmbed.toFixed(1)}ms`);
+  say(`  앞 5개 값: ${v.slice(0, 5).map((x) => x.toFixed(4)).join(', ')}`);
+  say(`  L2 크기: ${norm(v).toFixed(4)}`);
+  const top = c1[0]?.classifications?.[0]?.categories ?? [];
+  say(`[1초 창] 분류 top3 (${tClass.toFixed(1)}ms): ` +
+      top.map((c) => `${c.categoryName} ${(c.score * 100).toFixed(0)}%`).join(' · '));
+
+  // B) 파일 전체: 창이 몇 개 나오는지 (Python과 창 나누는 방식 맞추기용)
+  const all = embedder.embed(samples, SR);
+  say(`\n[파일 전체] 임베딩 ${all.length}개, 시작 시각(ms): ` +
+      all.slice(0, 8).map((r) => r.timestampMs).join(', ') + (all.length > 8 ? ' …' : ''));
+
+  const ok = v.length === 1024;
+  $('verdict').innerHTML = ok
+    ? '<span class="ok">성공: 웹에서 임베딩 1024개를 꺼낼 수 있어요 → 1번 방식 입력 = 임베딩</span>'
+    : `<span class="bad">실패: 임베딩 길이가 ${v.length}예요 → 점수 521개 위에 분류기</span>`;
+  say(`\n[판정] ${ok ? '성공 (임베딩 1024)' : '실패'}`);
+  $('copy').disabled = false;
+}
+
+$('file').addEventListener('change', (e) => {
+  const f = e.target.files[0];
+  if (f) run(f).catch((err) => {
+    $('verdict').innerHTML = `<span class="bad">오류: ${err.message}</span>`;
+    say(`[오류] ${err.stack ?? err}`);
+  });
+});
+$('copy').addEventListener('click', async () => {
+  await navigator.clipboard.writeText($('out').textContent);
+  $('copy').textContent = '복사됨!';
+});
+
+load().catch((err) => {
+  $('load').innerHTML = `<span class="bad">실패</span>`;
+  $('verdict').innerHTML = `<span class="bad">모델 준비 실패 → 점수 521개 위에 분류기로 가야 할 수 있어요</span>`;
+  say(`[오류] ${err.stack ?? err}`);
+});
+</script>
+</body>
+</html>
