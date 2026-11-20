@@ -84,9 +84,9 @@ body {
 
 .sound-detail { margin: 2px 0 0; font-size: 0.9rem; color: var(--muted); }
 
-/* 가까워지는 중 / 멀어지는 중 (색만으로 구분하지 않도록 화살표와 글자를 같이 쓴다) */
-.sound-trend { margin: 4px 0 0; font-size: 1.2rem; font-weight: 800; }
-.sound-trend[hidden] { display: none; }
+/* 가까워지는 중 / 멀어지는 중 (색만으로 구분하지 않도록 화살표와 글자를 같이 쓴다)
+   표시가 없어도 한 줄 자리를 잡아 두어 카드 높이가 늘었다 줄었다 하지 않게 한다 */
+.sound-trend { margin: 2px 0 0; font-size: 1.2rem; font-weight: 800; line-height: 1.5; min-height: 1.5em; }
 .sound-trend.is-approach { color: #b91c1c; }
 .sound-trend.is-approach::before { content: "▲ "; }
 .sound-trend.is-recede { color: var(--muted); }
@@ -95,7 +95,8 @@ body {
 /* 비슷한 소리 순위: 한 줄 칩 */
 .top-list {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;   /* 라벨 이름이 길어도 한 줄 유지 (카드 높이 고정) */
+  overflow: hidden;
   gap: 6px;
   margin: 10px 0 0;
   padding: 0;
@@ -106,11 +107,18 @@ body {
 }
 .top-list li {
   counter-increment: rank;
+  display: flex;
+  flex: 0 1 auto;      /* 자리가 모자라면 이름을 줄인다 (점수는 항상 보임) */
+  min-width: 0;
+  white-space: nowrap;
   padding: 3px 9px;
   background: rgba(22, 35, 63, 0.06);
   border-radius: 999px;
 }
-.top-list li::before { content: counter(rank) ". "; color: var(--muted); }
+.top-list li:nth-child(-n+2) { flex-shrink: 0; } /* 1·2위는 그대로, 3위 이름부터 줄임 */
+.top-list li::before { content: counter(rank) ".\00a0"; color: var(--muted); flex: none; }
+.top-list .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.top-list .score { flex: none; }
 .top-list .score { color: var(--muted); margin-left: 4px; }
 .top-list .top-empty { background: none; padding: 3px 0; color: var(--muted); }
 .top-list .top-empty::before { content: none; }

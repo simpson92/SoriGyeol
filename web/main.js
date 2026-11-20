@@ -300,7 +300,11 @@ function renderSound({ top, targets: scored, windows }, ms) {
   el.topList.replaceChildren(
     ...top.map((t) => {
       const li = document.createElement('li');
-      li.textContent = t.name;
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = t.name;
+      li.title = `${t.name} ${Math.round(t.score * 100)}%`;
+      li.append(name);
       const score = document.createElement('span');
       score.className = 'score';
       score.textContent = `${Math.round(t.score * 100)}%`;
@@ -316,9 +320,9 @@ function renderSound({ top, targets: scored, windows }, ms) {
   updateInfo();
 }
 
-// 확정된 사이렌·경적이 화면에 있을 때만 '가까워지는 중 / 멀어지는 중'을 덧붙인다 (애매하면 숨김)
+// 확정된 사이렌·경적이 화면에 있을 때만 '가까워지는 중 / 멀어지는 중'을 덧붙인다 (애매하면 빈칸)
+// 자리는 항상 잡아 두어 표시가 생기고 사라질 때 카드 높이가 바뀌지 않게 한다
 function renderTrend({ state, slope, up, down, off = 0 }) {
-  el.soundTrend.hidden = !state;
   el.soundTrend.className = state ? `sound-trend is-${state}` : 'sound-trend';
   el.soundTrend.textContent = state ? TREND_TEXT[state] : '';
   el.trendInfo.textContent = slope === null
