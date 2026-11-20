@@ -1,35 +1,27 @@
 # 소리결 Git 작업 규칙
 
-> 2026-11-17 정함 · 2026-11-18 수정 · 2026-11-19 Merge 규칙 수정 · 팀원 2명 (웹 앱 / 모델·데이터)
+> 2026-11-17 정함 · 2026-11-18 수정 · 2026-11-19 Merge 규칙 수정 · 2026-11-20 모든 변경 PR · 상대가 Merge · 팀원 2명 (웹 앱 / 모델·데이터)
 
 ## 원칙
 
 - `main`은 항상 동작하는 상태로 둔다. GitHub Pages가 `main`의 `web/`을 배포한다.
-- **사이트에 영향이 있는 변경**(`web/`, `.github/`)은 작업마다 브랜치를 만들고, 끝나면 PR로 `main`에 합친 뒤 지운다.
-- **예외: `configs/classes.yaml`, `configs/yamnet_map.yaml`** 은 웹 알림 대상을 바꾸므로 브랜치 → PR로 고친다. 고친 뒤 `python src/export_web_classes.py`를 실행해 `web/classes.json`도 같은 PR에 넣는다.
-- **그 외**(`docs/`, `src/`, `configs/`, `notebooks/` 등)는 `main`에 바로 push해도 된다. push 전에 항상 `git pull`.
-  - 평가 스크립트처럼 큰 작업은 리뷰 기록을 남기기 위해 PR을 권장한다.
+- **모든 변경은 브랜치 → PR로 올린다.** `main`에 바로 push하지 않는다 (`docs/` 포함).
+- **PR은 상대가 확인하고 Merge한다.** PR을 만든 사람은 직접 Merge하지 않는다.
+- `configs/classes.yaml`, `configs/yamnet_map.yaml`을 고쳤으면 `python src/export_web_classes.py`를 실행해 `web/classes.json`도 같은 PR에 넣는다.
 - 브랜치를 며칠 이상 오래 끌지 않는다. 길어지면 작게 나눠서 먼저 합친다.
-
-## 어느 방식으로 올릴까
-
-| 바꾼 파일 | 방식 |
-|---|---|
-| `web/`, `.github/`, `configs/classes.yaml`, `configs/yamnet_map.yaml` | **브랜치 → PR** (필수) |
-| `src/`, `notebooks/`, `configs/`(위 두 파일 제외) 중 큰 작업 | 브랜치 → PR (권장) |
-| `docs/`, 작은 수정 | **`main`에 바로 push** |
 
 ## 브랜치 이름
 
 | 영역 | 이름 | 예시 |
 |---|---|---|
-| 웹 앱 | `web/작업이름` | `web/alert`, `web/wake-lock` |
+| 웹 앱 | `web/작업이름` | `web/alert`, `web/approach-trend` |
 | 모델·데이터 | `data/작업이름` | `data/yamnet-eval` |
 | 클래스 설정 | `config/작업이름` | `config/siren-threshold` |
+| 문서 | `docs/작업이름` | `docs/devlog-11-20`, `docs/daily-csv` |
 
 작업이름은 영어 소문자와 `-`로 짧게 쓴다.
 
-## 순서 A: 브랜치 → PR
+## 작업 순서
 
 **1. 시작할 때**
 
@@ -50,14 +42,12 @@ git push -u origin web/작업이름   # 처음 한 번만 -u, 그다음부터는
 
 **3. 합치기 (GitHub)**
 
-1. 레포 페이지의 **Compare & pull request** 버튼으로 PR을 만든다. 설명란에 **무엇을, 왜** 바꿨는지 적는다 (리뷰가 없어도 작업 기록으로 남도록).
-2. **Merge는 누가 하나**
-   - **기본: PR을 만든 사람이 직접 Merge** 한다.
-   - **중요하다고 판단한 PR**은 PR 화면 오른쪽 **Reviewers**에 상대를 지정한다 → 상대가 확인하고 Merge 한다.
-   - 중요한 것 예시: 알림 동작이 바뀌는 것, `configs/classes.yaml` 기준 점수(threshold) 변경, 배포 설정(`.github/`) 변경
-   - `web/` PR은 Merge 전에 직접 동작을 확인하고, Merge 후 배포된 사이트를 휴대폰에서 한 번 더 확인한다 (Merge하면 바로 배포됨).
-   - 잘못 합쳐졌으면 PR 페이지의 **Revert** 버튼으로 되돌리는 PR을 만든다.
-3. Merge된 브랜치에는 더 커밋하지 않는다. 이어서 할 일은 새 브랜치로 시작한다.
+1. 레포 페이지의 **Compare & pull request** 버튼으로 PR을 만든다. 설명란에 **무엇을, 왜** 바꿨는지 적는다.
+2. PR 화면 오른쪽 **Reviewers**에 상대를 지정한다.
+3. **상대가 확인하고 Merge한다.** 고칠 점이 있으면 PR에 댓글로 남기고, 만든 사람이 같은 브랜치에 커밋을 더 올린 뒤 다시 확인한다.
+4. `web/` PR은 만든 사람이 PR 전에 직접 동작을 확인한다. Merge하면 바로 배포되므로, Merge 후 배포된 사이트를 휴대폰에서 한 번 더 확인한다.
+5. 잘못 합쳐졌으면 PR 페이지의 **Revert** 버튼으로 되돌리는 PR을 만든다 (이것도 상대가 Merge).
+6. Merge된 브랜치에는 더 커밋하지 않는다. 이어서 할 일은 새 브랜치로 시작한다.
 
 **4. 합친 뒤 정리**
 
@@ -67,19 +57,6 @@ git pull
 git branch -d web/작업이름
 git push origin --delete web/작업이름   # GitHub에서 Delete branch를 눌렀다면 생략
 ```
-
-## 순서 B: `main`에 바로 push
-
-```bash
-git switch main
-git pull
-git add 바꾼파일
-git status                     # data/, .wav, .venv가 섞이지 않았는지 확인
-git commit -m "docs: 무엇을 했는지 한 줄로"
-git push
-```
-
-push가 `rejected`로 거절되면 그사이 다른 사람이 올린 것이다. `git pull --rebase` 후 다시 `git push`.
 
 ## 커밋 메시지
 
