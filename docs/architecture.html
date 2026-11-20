@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>소리결 시스템 아키텍처 v0.2</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; width: 210mm; height: 297mm; padding: 8mm 8.5mm 6mm;
+    font-family: "Noto Sans CJK KR", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    font-size: 7.2pt; line-height: 1.33; color: #1d2433; background: #fff;
+    display: flex; flex-direction: column;
+  }
+  b, strong { font-weight: 700; }
+  .top { display: flex; justify-content: space-between; align-items: flex-start; }
+  h1 { margin: 0; font-size: 17pt; font-weight: 800; letter-spacing: -0.3px; }
+  h1 .en { color: #2563eb; }
+  .sub { color: #5b6475; margin-top: 2px; font-size: 7.6pt; }
+  .chips { display: flex; align-items: center; gap: 4px; margin-top: 3px; white-space: nowrap; }
+  .chip { border: 1.2px solid #1d2433; border-radius: 99px; padding: 2px 9px; font-weight: 700; font-size: 7.4pt; }
+  .chip.on { background: #1d2433; color: #fff; }
+  .chip.opt { border-style: dashed; color: #5b6475; border-color: #8a93a5; }
+  .arrow { color: #8a93a5; }
+  h2 { font-size: 9.6pt; margin: 7px 0 4px; padding-left: 7px; border-left: 3px solid #2563eb; }
+  .panel { border: 1px solid #d5dbe6; border-radius: 8px; padding: 7px 8px 8px; }
+  .panel + .panel { margin-top: 6px; }
+  .panel.a { background: #f3f7ff; border-color: #c9d8f5; }
+  .panel.b { background: #f2faf6; border-color: #c4e5d4; }
+  .ph { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+  .ph .t { font-weight: 800; font-size: 8.6pt; }
+  .panel.a .ph .t { color: #1d4ed8; }
+  .panel.b .ph .t { color: #047857; }
+  .ph .m { color: #5b6475; font-size: 7pt; }
+  .flow { display: flex; align-items: stretch; gap: 0; }
+  .flow .ar { display: flex; align-items: center; padding: 0 4px; color: #8a93a5; font-size: 10pt; }
+  .box { background: #fff; border: 1px solid #cfd6e2; border-radius: 6px; padding: 5px 6px; flex: 1; }
+  .box .n { font-weight: 800; font-size: 7.8pt; margin-bottom: 2px; display: flex; align-items: center; gap: 4px; }
+  .box .d { color: #3c4556; font-size: 6.7pt; }
+  .num { display: inline-flex; width: 13px; height: 13px; border-radius: 50%; background: #2563eb; color: #fff;
+         font-size: 6.6pt; font-weight: 800; align-items: center; justify-content: center; flex: none; }
+  .box.dark { background: #1d2433; border-color: #1d2433; color: #fff; }
+  .box.dark .d { color: #c9d0dc; }
+  .box.tint-blue { background: #e8f0ff; border-color: #b9cdf4; }
+  .box.tint-green { background: #e3f5ec; border-color: #a9d9bf; }
+  .box.ux { background: #fff7ed; border: 1.2px dashed #f59e0b; flex: 1.35; padding: 5px; }
+  .box.ux .uxh { font-weight: 800; color: #b45309; font-size: 7.4pt; margin-bottom: 4px; display: flex; gap: 4px; align-items: center; }
+  .ux .row { display: flex; gap: 4px; }
+  .ux .row .box { padding: 4px 5px; }
+  .num.o { background: #f59e0b; }
+  .bridge { display: flex; justify-content: flex-end; margin: 4px 6px 0 0; }
+  .bridge span { background: #fff; border: 1px solid #cfd6e2; border-radius: 99px; padding: 2px 8px; font-weight: 700; font-size: 7pt; }
+  .tag { display: inline-block; font-size: 6.4pt; font-weight: 700; border-radius: 3px; padding: 0 4px; margin-left: 2px; vertical-align: 1px; }
+  .tag.new { background: #dcfce7; color: #166534; }
+  .tag.cmp { background: #ede9fe; color: #5b21b6; }
+  .tag.wip { background: #fef3c7; color: #92400e; }
+  .stages { display: grid; grid-template-columns: 1.6fr 1fr; gap: 6px; margin-top: 6px; }
+  .stage { background: #fff; border: 1px solid #cfd6e2; border-radius: 6px; padding: 5px 7px; }
+  .stage .k { color: #2563eb; font-weight: 800; font-size: 6.6pt; letter-spacing: .4px; }
+  .stage .t { font-weight: 800; font-size: 8.4pt; }
+  .stage .d { color: #3c4556; font-size: 7pt; }
+  .stage.opt { border-style: dashed; }
+  .stage.opt .k { color: #8a93a5; }
+  .base { display: grid; grid-template-columns: 1.6fr 1fr; gap: 6px; margin-top: 6px; }
+  .base > div { border-radius: 6px; padding: 5px 7px; background: #eef1f6; }
+  .base .t { font-weight: 800; font-size: 7.8pt; }
+  .base .d { color: #3c4556; font-size: 7pt; }
+  .pills { display: flex; gap: 5px; margin-top: 3px; flex-wrap: wrap; }
+  .pills span { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; font-size: 7pt; }
+  .num.g { background: #64748b; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .card { border: 1px solid #d5dbe6; border-top: 3px solid #2563eb; border-radius: 6px; padding: 4px 7px 5px; }
+  .card.o { border-top-color: #f59e0b; }
+  .card.g { border-top-color: #64748b; }
+  .card .h { display: flex; justify-content: space-between; align-items: center; }
+  .card .h .t { font-weight: 800; font-size: 8.4pt; display: flex; gap: 5px; align-items: center; }
+  .w { font-size: 6.6pt; font-weight: 700; border: 1px solid #9aa3b5; border-radius: 99px; padding: 0 6px; color: #3c4556; }
+  .w.big { background: #1d2433; color: #fff; border-color: #1d2433; }
+  .card .lead { margin: 2px 0 2px; }
+  .card ul { margin: 0; padding-left: 11px; }
+  .card li { margin: 0; }
+  .card li::marker { color: #2563eb; }
+  .card.o li::marker { color: #f59e0b; }
+  .card.g li::marker { color: #64748b; }
+  .card .tools { margin-top: 1px; color: #3c4556; font-size: 6.7pt; }
+  .card .tools b { color: #1d2433; }
+  .changes { margin-top: 5px; border: 1px solid #f3d9a4; background: #fffbeb; border-radius: 6px; padding: 5px 8px; font-size: 7pt; }
+  .changes b.t { font-size: 7.6pt; }
+  .changes ul { margin: 2px 0 0; padding-left: 11px; columns: 2; column-gap: 14px; }
+  .foot { margin-top: auto; padding-top: 5px; border-top: 1px solid #e3e7ee; display: flex; justify-content: space-between; color: #5b6475; font-size: 6.8pt; }
+  code { font-family: "DejaVu Sans Mono", monospace; font-size: 6.6pt; background: #eef1f6; padding: 0 2px; border-radius: 2px; }
+  .box.dark code { background: #334055; color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div>
+    <h1>소리결 <span class="en">SoriGyeol</span> · 시스템 아키텍처</h1>
+    <div class="sub">청각장애인·난청인을 위한 주변 위험 소리 알림 — 프로젝트에서 다루는 영역과 연결 구조</div>
+  </div>
+  <div class="chips">
+    <span class="chip on">① 폰 웹 앱 (PWA)</span><span class="arrow">→</span><span class="chip opt">② Android (선택)</span>
+  </div>
+</div>
+
+<h2>전체 구조</h2>
+
+<div class="panel a">
+  <div class="ph"><span class="t">A. 학습 · 평가 파이프라인</span><span class="m">개발 PC · 오프라인 · Python</span></div>
+  <div class="flow">
+    <div class="box" style="flex:1.2">
+      <div class="n">데이터 소스</div>
+      <div class="d"><b>해외</b> UrbanSound8K·ESC-50<br>(FSD50K는 라벨만 참고)<br><b>한국</b> AI Hub 도시 소리<br>(사이렌 · 경적 · 배경)</div>
+    </div>
+    <div class="ar">→</div>
+    <div class="box tint-blue" style="flex:1.3">
+      <div class="n"><span class="num">1</span>데이터</div>
+      <div class="d">16kHz 모노 · 1초 조각 · 수동 제외<br>원본 녹음 기준으로 나눔<br>학습 30,918 · 검증 3,671<br>테스트 4,210 (한국 3,044)</div>
+    </div>
+    <div class="ar">→</div>
+    <div class="box tint-blue" style="flex:1.45">
+      <div class="n"><span class="num">2</span>AI 모델링</div>
+      <div class="d">기준: YAMNet 라벨 그대로 (<code>yamnet_map.yaml</code>)<br><b>1차: 임베딩 + 작은 분류기</b><span class="tag new">11/20 확정</span><br>비교: 로그-멜 + 경량 CNN<span class="tag cmp">비교 실험</span><br>재현율 · 오알림 · 점수→확률 변환표</div>
+    </div>
+    <div class="ar">→</div>
+    <div class="box dark" style="flex:1.2">
+      <div class="n">웹으로 넘기는 파일</div>
+      <div class="d"><code>classes.json</code> 클래스·기준 점수<br>분류기 가중치 JSON<br><code>calibration</code> 점수→확률 표<br>CNN이 이기면 ONNX 추가</div>
+    </div>
+  </div>
+  <div class="bridge"><span>Python 평가와 웹이 같은 YAMNet 파일 · 같은 설정 파일(configs/)을 사용 ↓</span></div>
+</div>
+
+<div class="panel b">
+  <div class="ph"><span class="t">B. 실시간 추론 — 폰 브라우저 (web/)</span><span class="m">사용자 기기 안에서만 동작 · 소리가 외부로 나가지 않음</span></div>
+  <div class="flow">
+    <div class="box" style="flex:0.95">
+      <div class="n">마이크 입력</div>
+      <div class="d">getUserMedia<br>잡음 억제·에코 제거·<br>자동 음량 끔 · 스테레오 요청</div>
+    </div>
+    <div class="ar">→</div>
+    <div class="box tint-green" style="flex:1.3">
+      <div class="n"><span class="num">3</span>오디오 신호처리</div>
+      <div class="d">최근 1초 창을 0.5초마다 분류<br>최근 3구간 중 2구간 감지 → 확정<br>같은 소리 5초 재알림 간격<br>가까워짐/멀어짐 (크기 변화)<span class="tag wip">진행 중</span><br>방향 실험: 좌우 크기 차·시간차</div>
+    </div>
+    <div class="ar">→</div>
+    <div class="box dark" style="flex:1.05">
+      <div class="n">모델 추론</div>
+      <div class="d">MediaPipe YAMNet (WASM)<br>→ 임베딩 1024<br>→ 작은 분류기<br>= 소리 종류 + 확률<br>(확실 · 보통 · 낮음)</div>
+    </div>
+    <div class="ar">→</div>
+    <div class="box ux">
+      <div class="uxh"><span class="num o">5</span>UX/디자인 원칙이 출력 전체를 규정</div>
+      <div class="row">
+        <div class="box"><div class="n"><span class="num o">4</span>진동 (우선)</div><div class="d">긴급 길게 3회<br>일반 짧게 2회<br>Android</div></div>
+        <div class="box"><div class="n">화면</div><div class="d">전체 깜빡임<br>(초당 2회)<br>소리 이름 크게<br>켜짐 유지</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="stages">
+    <div class="stage">
+      <div class="k">STAGE 1 · 지금</div>
+      <div class="t">폰 웹 앱 (PWA)</div>
+      <div class="d">폰 브라우저에서 모델 직접 실행 · 진동 · GitHub Actions → Pages 자동 배포. PC에서는 같은 앱을 Chrome으로 시험 (마이크 대신 소리 파일)</div>
+    </div>
+    <div class="stage opt">
+      <div class="k">STAGE 2 · 선택</div>
+      <div class="t">Android 네이티브</div>
+      <div class="d">Kotlin · 백그라운드 상시 감지 · 세밀한 진동</div>
+    </div>
+  </div>
+</div>
+
+<div class="base">
+  <div>
+    <div class="t">백엔드 서버 없음 — 모든 인식은 기기 안 (On-device)</div>
+    <div class="d">로그인·클라우드 저장·원격 업데이트는 범위 밖. 대신 개인정보 보호를 장점으로 제시. 모델·설정 파일은 배포된 사이트에서 같이 받음</div>
+  </div>
+  <div>
+    <div class="t">모든 단계를 받치는 기반 영역</div>
+    <div class="pills"><span><span class="num g">6</span>배포·협업</span><span><span class="num g">7</span>문서화</span><span><span class="num g">8</span>법·윤리</span></div>
+  </div>
+</div>
+
+<h2>영역별 설명</h2>
+<div class="grid">
+  <div class="card">
+    <div class="h"><span class="t"><span class="num">1</span>데이터</span><span class="w">비중 큼</span></div>
+    <div class="lead">모델이 배울 재료를 모으고, 공정하게 평가할 수 있게 정리한다.</div>
+    <ul>
+      <li>1차 클래스 <b>사이렌·경적·배경</b> (경보음은 꺼 둠, 초인종/노크는 후보)</li>
+      <li>같은 원본 녹음이 학습·평가에 섞이지 않게 분할 (겹침 0개 확인)</li>
+      <li>클래스 목록은 <code>classes.yaml</code> 하나로 관리 → 웹용 <code>classes.json</code>으로 내보냄</li>
+    </ul>
+    <div class="tools"><b>도구</b> pandas · librosa · AI Hub (WSL로 다운로드)</div>
+  </div>
+  <div class="card">
+    <div class="h"><span class="t"><span class="num">2</span>AI 모델링</span><span class="w big">가장 큼</span></div>
+    <div class="lead">기준 → 작은 분류기 → 자체 CNN을 같은 한국 테스트셋에서 숫자로 비교한다.</div>
+    <ul>
+      <li>Baseline 대비 개선을 증명 — 해외만/한국만/혼합 비교</li>
+      <li>위험 소리 재현율 · 시간당 오알림 · 소음(SNR)별 성능이 핵심 지표</li>
+      <li>평가로 클래스별 기준 점수와 점수→확률 변환표를 만들어 웹에 전달</li>
+    </ul>
+    <div class="tools"><b>도구</b> MediaPipe · scikit-learn · PyTorch · SpecAugment · ONNX(CNN 비교 시)</div>
+  </div>
+  <div class="card">
+    <div class="h"><span class="t"><span class="num">3</span>오디오 신호처리</span><span class="w">비중 중간</span></div>
+    <div class="lead">끊김 없이 들어오는 소리를 실시간으로 잘라 모델에 넣고, 결과를 안정화한다.</div>
+    <ul>
+      <li>1초 창을 0.5초마다 분류, 3구간 중 2구간 감지 시에만 알림해 오알림 감소</li>
+      <li>가까워짐/멀어짐: 소리 크기 기울기 (+1.5dB/초 2회 / −3dB/초 3회)</li>
+      <li>방향: 두 채널 크기 차·도착 시간차로 좌/우 실험, 한계는 표로 정리</li>
+    </ul>
+    <div class="tools"><b>도구</b> Web Audio API (AudioWorklet) · NumPy/SciPy (분석)</div>
+  </div>
+  <div class="card">
+    <div class="h"><span class="t"><span class="num">4</span>프론트엔드</span><span class="w">비중 중간</span></div>
+    <div class="lead">감지 결과를 사용자가 느끼고 볼 수 있게 만드는 화면과 진동.</div>
+    <ul>
+      <li>폰 마이크 입력 + 브라우저 안 YAMNet 실행 + 진동 API + 화면 깜빡임</li>
+      <li>한 화면에 지금 소리 · 확률 · 소리 크기, 개발 정보는 접어 둠</li>
+      <li>manifest · 서비스 워커로 홈 화면 설치 지원 (예정)</li>
+    </ul>
+    <div class="tools"><b>도구</b> HTML/CSS/JS · MediaPipe Tasks Audio · Wake Lock API</div>
+  </div>
+  <div class="card o">
+    <div class="h"><span class="t"><span class="num o">5</span>UX/디자인</span><span class="w">비중 중간</span></div>
+    <div class="lead">"걸으면서 화면을 보지 않아도 알 수 있게" — 안전 중심 설계 원칙.</div>
+    <ul>
+      <li>이동 중 진동 우선, 정지 시 화면 상세 확인</li>
+      <li>진동 패턴은 처음엔 긴급·일반 2종으로 단순하게</li>
+      <li>깜빡임은 초당 2회 이하(광과민 안전), 색 대비·색각 이상 고려</li>
+    </ul>
+    <div class="tools"><b>산출물</b> 화면 시안 · 진동 패턴 표 · 알림 우선순위 규칙</div>
+  </div>
+  <div class="card g">
+    <div class="h"><span class="t"><span class="num g">6</span>배포·협업</span><span class="w">비중 작음</span></div>
+    <div class="lead">코드를 버전 관리하고, 누구나 실행·접속할 수 있게 한다.</div>
+    <ul>
+      <li>짧은 브랜치 + PR, docs는 main에 바로 (<code>git-workflow.md</code>)</li>
+      <li>원본 데이터는 올리지 않고 받는 방법만 기록, uv 가상환경</li>
+      <li>main에 합쳐지면 GitHub Actions가 Pages로 자동 배포</li>
+    </ul>
+    <div class="tools"><b>도구</b> Git · GitHub · GitHub Actions · GitHub Pages · uv</div>
+  </div>
+  <div class="card g">
+    <div class="h"><span class="t"><span class="num g">7</span>문서화</span><span class="w">비중 중간</span></div>
+    <div class="lead">아이디어의 방향성과 실험 근거를 포트폴리오로 전달한다.</div>
+    <ul>
+      <li>README: 문제 → 설계 원칙 → 접근 → 결과 → 시연 → 한계 → 로드맵</li>
+      <li>개발 일지 · 데일리 CSV · 기획서 · 실험 기록(비교표·혼동행렬)</li>
+      <li>사이렌에 폰이 진동하는 실제 시연 영상/GIF</li>
+    </ul>
+    <div class="tools"><b>산출물</b> README · 개발 일지 · 실험 로그 · 시연 영상</div>
+  </div>
+  <div class="card g">
+    <div class="h"><span class="t"><span class="num g">8</span>법·윤리</span><span class="w">비중 작음</span></div>
+    <div class="lead">실용화를 내다보는 프로젝트로서 지켜야 할 선을 명시한다.</div>
+    <ul>
+      <li>데이터셋별 라이선스 (AI Hub 재배포 금지·출처 표기, ESC-50·US8K 비상업)</li>
+      <li>마이크 상시 사용 → 기기 내 처리 원칙, 말소리 확장 시 특히 중요</li>
+      <li>"안전 보조 수단이며 주의를 대체하지 않음" 문구 명시</li>
+    </ul>
+    <div class="tools"><b>산출물</b> README 데이터 출처·라이선스 표 · 이용 시 주의 문구</div>
+  </div>
+</div>
+
+<div class="changes">
+  <b class="t">v0.1 → v0.2 바뀐 점 (11/20)</b>
+  <ul>
+    <li>PC 데모 단계(Python + 웹소켓) 제외 → 웹 앱을 PC Chrome에서 바로 시험</li>
+    <li>1차 클래스 5종 → 사이렌·경적·배경 3종</li>
+    <li>웹 모델: ONNX CNN → YAMNet 임베딩 + 작은 분류기 (CNN은 비교 실험)</li>
+    <li>웹으로 넘기는 파일: classes.json · 가중치 JSON · 확률 변환표</li>
+    <li>판정 규칙 숫자 반영 (3구간 중 2구간, 5초 간격), 가까워짐/멀어짐 추가</li>
+    <li>FastAPI · onnxruntime-web 제거, GitHub Actions 배포 추가</li>
+  </ul>
+</div>
+
+<div class="foot"><span>소리결(SoriGyeol) · 아키텍처 개요 v0.2</span><span>2026.11.20 (v0.1: 2026.11.13)</span></div>
+</body>
+</html>
