@@ -13,3 +13,6 @@
 2026-11-20,하민,Test,가까워짐 시험 파일,src/make_trend_wavs.py · ESC-50 사이렌으로 approach / recede / passby / steady.wav · PC 가짜 마이크로 확인,완료,PR #9 · fd78131
 2026-11-20,하민,Fix,소리 카드 높이 고정,가까워짐 줄 자리 항상 확보 · 순위 칩 한 줄(3위 이름만 줄임 · 점수 항상 표시),완료,PR #10 · 7758e76
 2026-11-20,하민,Test,MediaPipe 버전 비교 페이지,web/lab/compare.html · 1.2.3 vs 0.10.21 사이렌·경적 점수 비교 · 실행 전,진행 중,PR #9 · web/lab/compare.html
+2026-11-20,준형,Docs,Git 규칙 변경,모든 변경은 브랜치 → PR(docs 포함) · PR은 상대가 확인하고 Merge · main 바로 push 방식 삭제 · 브랜치 이름 docs/ 추가 · 고칠 점은 PR 댓글로,완료,PR #8 · eb89806 · docs/git-workflow.md (하민이 올림)
+2026-11-20,준형,Docs,하민 할 일 요청 정리,임베딩 0.975초 · 변환표 형식 PR · siren.wav 공유 · MediaPipe 버전 · approach-trend PR · Git 규칙 PR · 데이터 다시 만들기 · 기획서 갱신 (8개),완료,-
+2026-11-20,준형,Done,PR 리뷰 · Merge 6건,#6 임베딩 확인 페이지 · 변환표 형식 / #7 아키텍처 v0.2 · 기획서 / #8 아키텍처 PDF 교체 · Git 규칙 / #9 가까워지는 중 · 멀어지는 중 / #10 소리 카드 높이 고정 / #11 데일리 CSV,완료,38b894f · c1c1f8a · 9b4e991 · 79731f8 · b7d8e03 · 9c72d41
