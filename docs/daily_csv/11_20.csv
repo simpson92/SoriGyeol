@@ -1,0 +1,15 @@
+날짜,작성자,구분,항목,세부내용,상태,관련
+2026-11-20,하민,Test,웹 임베딩 꺼내기 확인,MediaPipe 0.10.21 AudioEmbedder로 YAMNet 임베딩 1024개 확인 · 1초 창 35ms · YAMNet 창은 0.975초(15600샘플)라 1초를 넣으면 결과 2개 → 0.975초당 1개로 맞추기로 · 결과 준형 공유,완료,PR #6 · ef87e7c · web/lab/embedder.html
+2026-11-20,하민,Docs,점수→확률 변환표 형식,configs/calibration.json · 클래스별 x/y 점(isotonic 결과 그대로) · score 필드로 어떤 점수용 표인지 표시 · 확실 0.8 / 보통 0.5 / 낮음 · 알림 판단은 threshold 그대로,완료,PR #6 · ef87e7c · docs/calibration-format.md
+2026-11-20,하민,Done,siren.wav 공유,PC 시험용 siren.wav의 ESC-50 원본 파일 이름 확인 → 준형 공유 (Python 임베딩 대조용),완료,—
+2026-11-20,하민,Test,데이터 다시 만들기,build_manifest.py → make_split.py · manual_exclude.csv 반영 · train 30918 · background 26455 · split 겹침 0 · 준형과 일치,완료,data/processed/manifest.csv (Git 제외)
+2026-11-20,하민,Docs,기획서 갱신,4종 → 1차 3클래스(사이렌·경적·배경) · 분류 모델 = YAMNet 임베딩 + 작은 분류기 · 1차 대상 소리·학습 데이터 결정 추가 · 성공 기준에 한국 테스트셋 분류 성능 · 일정 그림 이름 채움 · PDF/md 내보내기,완료,PR #7 · 488c1fe · docs/기획서.md
+2026-11-20,하민,Docs,아키텍처 v0.2,PC 데모 단계 제외(웹 앱 직행) · 3클래스 · 임베딩 + 작은 분류기(자체 CNN은 비교 실험) · 웹으로 넘기는 파일(classes.json · 가중치 JSON · 확률 변환표) · 판정 규칙 숫자 · FastAPI · onnxruntime-web 제거 · Actions 배포,완료,PR #7 · 0e5f122 · docs/architecture.pdf
+2026-11-20,하민,Fix,깨진 아키텍처 PDF 교체,다운로드 과정에서 PDF 손상(452KB → 621KB) → tgz로 다시 받아 교체 · 원본 architecture.html 추가 · 기획서 경보음 이유 최신화,완료,PR #8 · 8387d5c
+2026-11-20,하민,Docs,Git 규칙 변경 반영,준형 작성 규칙 올림 · 모든 변경은 PR · PR은 상대가 Merge,완료,PR #8 · eb89806 · docs/git-workflow.md
+2026-11-20,하민,Done,가까워지는 중 / 멀어지는 중,web/approach.js · 확정 뒤 최근 3초 소리 크기 기울기 · 표시 시작 +1.5dB/초 2번 · -3dB/초 3번 · 유지 +0.5 / -1dB/초 · 벗어남 3번 연속이면 내림 · 확정 전 크기 점프 제외 · 의논 ④,완료,PR #9 · fd78131
+2026-11-20,하민,Fix,분류 창 0.975초,1초 입력 시 빈 조각 때문에 '조용함 80%'가 끼어듦 → 최근 0.975초 · 첫 조각만 사용 · 개발 정보에 결과 수 표시,완료,PR #9 · fd78131 · web/main.js · web/classifier.js
+2026-11-20,하민,Fix,깜빡임 중 소리 카드 보이기,전체 화면을 덮어 가까워짐 표시를 못 봄 → 소리 카드는 깜빡임 위에 그대로 표시 · 아래 글자 작게,완료,PR #9 · fd78131 · web/style.css
+2026-11-20,하민,Test,가까워짐 시험 파일,src/make_trend_wavs.py · ESC-50 사이렌으로 approach / recede / passby / steady.wav · PC 가짜 마이크로 확인,완료,PR #9 · fd78131
+2026-11-20,하민,Fix,소리 카드 높이 고정,가까워짐 줄 자리 항상 확보 · 순위 칩 한 줄(3위 이름만 줄임 · 점수 항상 표시),완료,PR #10 · 7758e76
+2026-11-20,하민,Test,MediaPipe 버전 비교 페이지,web/lab/compare.html · 1.2.3 vs 0.10.21 사이렌·경적 점수 비교 · 실행 전,진행 중,PR #9 · web/lab/compare.html

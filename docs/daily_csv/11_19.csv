@@ -13,3 +13,4 @@
 2026-11-19,하민,Fix,알림 기준 문구 이동,본 화면은 '알림 대상 아님'만 · 클래스별 알림 기준은 개발 정보 칸에 표시 · 의논 ③-2 반영,완료,PR #5 · 09f3e6f · web/main.js
 2026-11-19,하민,Docs,Git 규칙 PR 필수 파일 추가,configs/yamnet_map.yaml도 PR 필수 (web/classes.json 같은 PR),완료,PR #5 · docs/git-workflow.md
 2026-11-19,하민,Docs,README 데이터 출처 · 라이선스,AI Hub 출처 문구 · ESC-50 · US8K · FSD50K 인용과 라이선스 · 이용 조건 표 · 사용 모델(YAMNet · MediaPipe),완료,PR #5 · 7c8ecd2 · README.md
+2026-11-19,하민,Chore,Merge된 브랜치 정리,Merge 끝난 원격·로컬 브랜치 삭제 (push --delete · fetch --prune · branch -d),완료,-

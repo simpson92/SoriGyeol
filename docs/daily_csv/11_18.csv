@@ -15,3 +15,6 @@
 2026-11-18,준형,Done,수동 제외 목록,경적 섞인 US8K 배경 2개 제외,완료,b56ce92 · configs/manual_exclude.csv
 2026-11-18,준형,Fix,무음 기준 수정,-60dB → -90dB (작게 녹음된 진짜 사이렌 등 23파일이 통째로 사라짐),완료,b0a9505
 2026-11-18,준형,Docs,개발 일지,11-17 오후 · 11-18 · 11-18 저녁,완료,fdb7e6b · 064286a
+2026-11-18,하민,Done,데이터 받기,AI Hub 도시 소리 직접 신청·다운로드(TS·VS 압축 해제) · ESC-50 · UrbanSound8K · FSD50K 라벨 · 받는 중 압축 오류는 복사 완료 후 해결,완료,docs/data-download.md
+2026-11-18,하민,Test,데이터 목록·분할 재현,build_manifest.py → make_split.py 실행 · 준형과 같은 결과 확인 (수동 제외 목록 반영 전이라 train 30920 · val 3671 · test 4210 · 한국 테스트셋 3044 · 11-20에 반영 후 30918로 다시 맞춤),완료,src/build_manifest.py · src/make_split.py
+2026-11-18,하민,Test,PC 실제 YAMNet 알림 시험,마이크 없는 PC에서 Chrome 가짜 마이크 + ESC-50 소리(siren · horn · mix.wav) · 사이렌 59~67%(가끔 오페라·합창으로 착각 → 2구간 확정 규칙 필요 확인) · 경적 41% · 알람시계·개·노크는 알림 없음 · 화면 깜빡임 · 화면 켜짐 유지 동작 확인,완료,PR #4
