@@ -1,0 +1,8 @@
+﻿날짜,작성자,구분,항목,세부내용,상태,관련
+2026-11-23,준형,Chore,학원 PC 추출 환경,.venv-mp(Python 3.11 + mediapipe 0.10.21 + numpy 1.x) 따로 만듦 · 학습용 .venv(numpy 2)는 그대로 · YAMNet 모델 2개 받음,완료,devlog 11-23
+2026-11-23,준형,Test,YAMNet 점수 · 임베딩 추출,val 57464 · test 66431 조각 · 2분 15초 · 점수 / 임베딩 0 · inf 없음,완료,data/yamnet/ (Git 제외)
+2026-11-23,준형,Test,YAMNet 기준 평가,지금 웹 0.3이면 한국 test 사이렌 재현율 0.916 · 경적 0.627 · 시간당 오알림 1.39 · AUC 사이렌 0.983 · 경적 0.961 · 놓친 경적 1위 라벨 Music,완료,data/yamnet/eval/report.md (Git 제외)
+2026-11-23,준형,Done,threshold 결정,오알림 목표로 사이렌 0.45 · 경적 0.15 → 한국 test 재현율 0.871 · 0.753 · 시간당 오알림 0.35 · 작은 분류기 나오기 전 임시 값 · 하민 리뷰 대기,진행 중,PR #12 · fa5280b · configs/classes.yaml · web/classes.json
+2026-11-23,준형,Done,점수 방식 · 변환표,점수 방식은 max 유지(합과 차이 작음) · 변환표 ECE 경적 0.118 → 0.005로 효과 있음 → configs/calibration.json · 하민 리뷰 대기,진행 중,PR #12 · configs/calibration.json
+2026-11-23,준형,Docs,개발 일지,devlog 11-23 (평가 결과 · threshold 결정),완료,5b64698 · docs/devlog.md
+2026-11-23,준형,Done,평가 PR 생성,data/yamnet-eval 브랜치(대조 · 추출 · 평가 스크립트 · devlog 11-20~11-23) → 하민 리뷰 대기,진행 중,PR #13
