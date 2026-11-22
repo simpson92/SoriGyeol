@@ -640,3 +640,75 @@ Galaxy S22 · Android 16 · Chrome 157 · 집 PC 스피커로 유튜브 한국 �
 - [ ] 결과로 threshold PR (`config/` 브랜치: `classes.yaml` + `classes.json`) · `calibration.json` PR · `data/yamnet-eval` PR
 - [ ] 기록 기능이 생기면 폰 실측 다시 (확정까지 걸린 시간, 가까워짐 기울기)
 - [ ] [하민] H2 분류기 가중치 형식 문서 → 준형 ④ 작은 분류기 학습
+
+## 2026-11-23 · 2단계 (1) — YAMNet 기준 평가 실행 · threshold 결정 (학원 PC)
+
+### 한 일
+- 학원 PC에 추출 전용 가상환경 `.venv-mp`(Python 3.11 + mediapipe 0.10.21 + numpy 1.x) 만들고 모델 2개 받음
+- `extract_yamnet.py`로 val · test 모든 조각의 YAMNet 점수 521개 + 임베딩 1,024개 저장 (약 2분 15초)
+- `eval_yamnet.py`로 웹 알림 규칙 그대로 평가 (약 8초) → `data/yamnet/eval/report.md` · `curves.png` 등
+- 결과로 threshold를 정하고 PR #12 (`config/yamnet-baseline`): 사이렌 0.45 · 경적 0.15 + `configs/calibration.json`
+
+### 실행한 명령어
+```bash
+git fetch && git switch data/yamnet-eval && git pull
+sudo apt install -y libgles2 libegl1 libgl1
+uv venv --python 3.11 .venv-mp
+uv pip install --python .venv-mp/bin/python "mediapipe==0.10.21" pandas soundfile tqdm pyyaml scikit-learn matplotlib
+mkdir -p models/yamnet
+wget -q -O models/yamnet/yamnet.tflite https://storage.googleapis.com/mediapipe-models/audio_classifier/yamnet/float32/1/yamnet.tflite
+wget -q -O models/yamnet/yamnet_embedding_metadata.tflite "https://storage.googleapis.com/mediapipe-assets/yamnet_embedding_metadata.tflite?generation=1668295071595506"
+
+.venv-mp/bin/python src/extract_yamnet.py --limit-files 20   # 시험
+time .venv-mp/bin/python src/extract_yamnet.py               # 전체 (val, test) · 2m15s
+time .venv-mp/bin/python src/eval_yamnet.py                  # 평가 · 8s
+```
+
+### 평가 데이터
+| split | 사이렌 | 경적 | 배경 | 조각 |
+|---|---|---|---|---|
+| val | 284 | 813 | 2,574 | 57,464 |
+| test | 340 | 958 | 2,912 | 66,431 |
+
+- 한국 = AI Hub, 해외 = ESC-50 + UrbanSound8K. 한국 test = AI Hub Validation
+- 출력 파일(`data/yamnet/`)은 git 제외 → 숫자는 이 기록과 PR #12에 남김
+
+### 결과 1 — 조각 단위 구분력 (AUC, test)
+| | 사이렌 max | 사이렌 합 | 경적 max | 경적 합 |
+|---|---|---|---|---|
+| 한국 | 0.983 | 0.983 | 0.961 | 0.958 |
+| 해외 | 0.840 | 0.840 | 0.955 | 0.956 |
+
+- 한국 소리는 사이렌 · 경적 모두 배경과 잘 가름 (재학습 없이도)
+- 해외 사이렌은 약함 (US8K 사이렌 재현율 0.54 ~ 0.57)
+
+### 결과 2 — 알림 전체 (클래스 기준 같이 적용, max, 한국 test)
+| 설정 | 사이렌 / 경적 threshold | 사이렌 재현율 | 경적 재현율 | 배경 시간당 오알림 |
+|---|---|---|---|---|
+| 지금 웹 | 0.3 / 0.3 | 0.916 | **0.627** | 1.39 |
+| **오알림 목표 (채택)** | **0.45 / 0.15** | 0.871 | **0.753** | **0.35** |
+| 재현율 목표 | 0.19 / 0.04 | 0.928 | 0.928 | 7.11 |
+
+- 지금 웹 0.3에서 경적 소분류 재현율: 이륜차경적 0.624 · 차량경적 0.632 → 둘 다 비슷하게 약함
+- 놓친 경적 파일에서 YAMNet 1위 라벨: Music 76 · Vehicle 26 · Harmonica 12 → **경적을 음악으로 들음**
+- 놓친 사이렌 파일 1위 라벨: Animal 20 · Music 10 · Beep, bleep 7
+
+### 결과 3 — 점수 → 확률 변환표 (isotonic, val로 만들고 test로 확인)
+| 클래스 | ECE 그대로 → 변환 후 (한국 test) | Brier 그대로 → 변환 후 |
+|---|---|---|
+| 사이렌 | 0.047 → 0.007 | 0.032 → 0.019 |
+| 경적 | 0.118 → 0.005 | 0.093 → 0.030 |
+
+- 변환 후 "표시한 확률"이 실제 비율과 거의 맞음 → `configs/calibration.json`으로 사용 (웹 표시는 H3)
+
+### 결정과 이유
+- **threshold = 오알림 목표(사이렌 0.45 · 경적 0.15)**: 지금보다 경적 재현율 +12.6%p, 오알림 1/4. 사이렌 재현율은 −4.5%p. 재현율 목표는 오알림이 약 8분에 한 번이라 알림을 무시하게 될 수 있어 제외. 작은 분류기(④)가 나오기 전까지 쓰는 **임시 값**
+- **점수 방식 max 유지**: 합이 사이렌에서 조금 낫고 경적에서 조금 나쁨. 차이가 작고 웹이 이미 max
+- **변환표 사용**: ECE가 크게 줄어 확률 표시용으로 충분
+- **④ 작은 분류기가 필요한 이유가 숫자로 확인됨**: 구분력(AUC)은 높은데 경적 점수 자체가 낮게 나와 threshold를 낮춰야 함 → 한국 데이터로 학습한 분류기가 점수 크기를 바로잡을 수 있음
+
+### 다음 할 일
+- [ ] [하민] PR #12 리뷰 · Merge → 준형 폰에서 "알림 기준: 사이렌 45% · 경적 15%" 확인
+- [ ] [하민] H3 `calibration.json` 웹 표시 (`"set": "val"`인 이유는 PR #12 참고)
+- [ ] `bg_suspects.csv` 위쪽 파일 직접 듣기 → 진짜 사이렌 · 경적이면 `manual_exclude.csv` 검토 (학원 PC는 소리가 안 나서 방법 따로)
+- [ ] [하민] H2 분류기 가중치 형식 문서 → 준형 ④ 작은 분류기 학습 (`extract_yamnet.py --splits train --keep-only`부터)
