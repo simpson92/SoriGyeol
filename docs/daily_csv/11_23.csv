@@ -8,3 +8,9 @@
 2026-11-23,준형,Done,평가 PR 생성,data/yamnet-eval 브랜치(대조 · 추출 · 평가 스크립트 · devlog 11-20~11-23) → 하민 리뷰 대기,진행 중,PR #13
 2026-11-23,준형,Docs,공부자료 ④권,숫자로 확인하기 — 임베딩 대조 · mediapipe 버전 · 평가 스크립트 · threshold · 변환표 · 폰 실측 (7쪽),완료,soriGyeol_study_04_2026-11-23.pdf
 2026-11-23,준형,Docs,작업 현황 PDF,평가 결과 · 결정 · PR #12 · #13 · 부탁 4개 · 의논 안건 3개 → 하민 공유,완료,soriGyeol_status_2026-11-23.pdf
+2026-11-23,준형,Done,PR #12 · #13 Merge,하민 님 확인이 어려워 준형이 리뷰 후 Merge · 사이트에 기준 0.45 / 0.15 반영,완료,c0923c1
+2026-11-23,준형,Test,train 임베딩 추출,extract_yamnet.py --splits train --keep-only · 233029조각 · 4.2분 · 0 / inf 없음,완료,data/yamnet/ (Git 제외)
+2026-11-23,준형,Done,작은 분류기 학습 스크립트,YAMNet 임베딩 위 logreg · mlp 학습 → 같은 알림 규칙으로 YAMNet 그대로와 비교 → 웹용 가중치 JSON · 변환표,완료,src/train_head.py
+2026-11-23,준형,Test,작은 분류기 평가,mlp · 기준 0.98 / 0.991 → 한국 test 사이렌 0.992 · 경적 0.946 · 시간당 오알림 0.35 (지금 웹 0.871 · 0.753 · 0.35),완료,data/yamnet/head/all/report.md (Git 제외)
+2026-11-23,준형,Fix,분류기 기준 후보 범위,0.99에서 멈춰 범위 끝 값이 골라짐 → 0.99 위도 보도록 수정 후 val로 다시 고름,완료,src/train_head.py
+2026-11-23,준형,Docs,개발 일지,devlog 11-23 오후 (작은 분류기 학습 · 기준 결정),완료,docs/devlog.md
