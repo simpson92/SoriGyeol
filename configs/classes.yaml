@@ -16,11 +16,13 @@ classes:
     name_ko: 사이렌
     priority: 1
     enabled: true
+    threshold: 0.45      # YAMNet 기준 평가(11-23) 오알림 목표 · 한국 test 재현율 0.871 · 시간당 오알림 0.35
 
   - id: horn
     name_ko: 경적          # 자동차 + 이륜차 경적을 하나로 (사용자 입장에선 같은 행동이 필요)
     priority: 1
     enabled: true
+    threshold: 0.15      # YAMNet 기준 평가(11-23) 오알림 목표 · 한국 test 재현율 0.753 (분류기 나오기 전 임시 값)
 
   - id: alarm
     name_ko: 화재·경보음
